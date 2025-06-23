@@ -50,8 +50,12 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env and add your OpenAI API key
 
-# Generate puzzles
+# Generate puzzles (from backend directory)
 python cli.py --count 5
+
+# Or from project root
+cd ..
+python generate_puzzles.py --count 5
 ```
 
 ### Generated Output

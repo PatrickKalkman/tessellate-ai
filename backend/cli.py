@@ -11,6 +11,10 @@ from datetime import datetime
 import tempfile
 import shutil
 
+# Add the backend directory to Python path
+backend_dir = Path(__file__).parent.absolute()
+sys.path.insert(0, str(backend_dir))
+
 import click
 from rich.console import Console
 from rich.table import Table

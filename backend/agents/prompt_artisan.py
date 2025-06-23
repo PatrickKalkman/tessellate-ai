@@ -4,6 +4,7 @@ from typing import Optional, List, Dict
 from datetime import datetime
 import json
 from pathlib import Path
+import requests
 
 from openai import OpenAI
 from pydantic import BaseModel
