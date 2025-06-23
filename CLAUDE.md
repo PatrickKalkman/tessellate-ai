@@ -99,7 +99,7 @@ npm test
 2. **No piece rotation** - pieces are always upright
 3. **Static site architecture** - all assets pre-generated
 4. **Lazy loading** - pieces fetched on demand
-5. **Quality threshold of 80/100** - images below this score are rejected
+5. **Quality threshold of 30/100** - images below this score are rejected
 
 ## Asset Structure
 

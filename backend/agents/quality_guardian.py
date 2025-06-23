@@ -26,11 +26,11 @@ class QualityGuardian:
             'local_contrast': 0.35
         }
         
-        # Thresholds for individual metrics
+        # Thresholds for individual metrics (adjusted for lower quality threshold)
         self.min_thresholds = {
-            'edge_density': 10.0,  # Minimum 10% edge pixels
-            'color_entropy': 4.0,   # Minimum entropy of 4.0
-            'local_contrast': 20.0  # Minimum contrast std dev of 20
+            'edge_density': 3.0,   # Minimum 3% edge pixels (was 10%)
+            'color_entropy': 1.5,  # Minimum entropy of 1.5 (was 4.0)
+            'local_contrast': 8.0  # Minimum contrast std dev of 8 (was 20)
         }
     
     def evaluate(self, image_path: str) -> QualityMetrics:

@@ -13,7 +13,7 @@ class TestQualityGuardian:
     @pytest.fixture
     def quality_guardian(self):
         """Create a QualityGuardian instance"""
-        return QualityGuardian(threshold=80.0)
+        return QualityGuardian(threshold=30.0)
     
     @pytest.fixture
     def create_test_image(self):
@@ -80,7 +80,7 @@ class TestQualityGuardian:
         assert metrics.edge_density < 10
         assert metrics.color_entropy < 2
         assert metrics.local_contrast < 20
-        assert not metrics.passes_threshold(80.0)
+        assert not metrics.passes_threshold(30.0)
     
     def test_calculate_edge_density(self, quality_guardian, create_test_image):
         """Test edge density calculation"""

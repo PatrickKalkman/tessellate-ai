@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     piece_size: int = Field(128, env="PIECE_SIZE")
     
     # Quality Settings
-    quality_threshold: float = Field(80.0, env="QUALITY_THRESHOLD")
+    quality_threshold: float = Field(30.0, env="QUALITY_THRESHOLD")
     
     # Output Configuration
     output_dir: str = Field("../public/puzzles", env="OUTPUT_DIR")

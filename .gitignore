@@ -209,3 +209,6 @@ public/puzzles/*
 
 # IDE
 .idea/
+
+# Runtime data
+backend/prompt_history.json

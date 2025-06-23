@@ -92,7 +92,7 @@ The Quality Guardian evaluates images based on:
 - **Color Entropy**: Measures color variety and distribution
 - **Local Contrast**: Evaluates texture and pattern variation
 
-Images scoring below 80/100 are automatically rejected.
+Images scoring below 30/100 are automatically rejected.
 
 ## Development
 

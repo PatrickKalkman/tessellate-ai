@@ -114,4 +114,4 @@ See `.env.example` for all configuration options:
 - `OPENAI_API_KEY`: Required for image generation
 - `IMAGE_SIZE`: Puzzle image size (default: 2048)
 - `GRID_ROWS/GRID_COLS`: Puzzle grid dimensions (default: 16x16)
-- `QUALITY_THRESHOLD`: Minimum quality score (default: 80.0)
+- `QUALITY_THRESHOLD`: Minimum quality score (default: 30.0)
