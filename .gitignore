@@ -192,3 +192,20 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Project specific
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Generated puzzle data
+public/puzzles/*
+!public/puzzles/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE
+.idea/
