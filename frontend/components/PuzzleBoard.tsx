@@ -7,29 +7,65 @@ import type { Stage as StageType } from 'konva/lib/Stage'
 
 const KonvaStage = dynamic(
   async () => {
-    const { Stage, Layer, Image: KonvaImage } = await import('react-konva')
+    const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await import('react-konva')
     const useImage = (await import('use-image')).default
     
-    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage }: any) {
+    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX }: any) {
+      const playAreaHeight = stageSize.height - trayHeight
+      
       return (
         <Stage 
           width={stageSize.width} 
           height={stageSize.height}
           ref={stageRef}
           className="mt-20"
+          onWheel={(e) => {
+            const evt = e.evt
+            // Check if mouse is in tray area
+            if (evt.offsetY > playAreaHeight) {
+              evt.preventDefault()
+              const delta = evt.deltaX || evt.deltaY
+              scrollX.current = Math.max(0, scrollX.current + delta)
+            }
+          }}
         >
           <Layer>
+            {/* Play area background */}
+            <Rect
+              x={0}
+              y={0}
+              width={stageSize.width}
+              height={playAreaHeight}
+              fill="#1a1a1a"
+            />
+            
             {/* Background image (faded) */}
             {backgroundImage && (
               <KonvaImage
                 image={backgroundImage}
                 x={(stageSize.width - manifest.size) / 2}
-                y={(stageSize.height - manifest.size) / 2}
+                y={(playAreaHeight - manifest.size) / 2}
                 width={manifest.size}
                 height={manifest.size}
                 opacity={0.2}
               />
             )}
+
+            {/* Tray area background */}
+            <Rect
+              x={0}
+              y={playAreaHeight}
+              width={stageSize.width}
+              height={trayHeight}
+              fill="#2a2a2a"
+            />
+            
+            {/* Separator line */}
+            <Line
+              points={[0, playAreaHeight, stageSize.width, playAreaHeight]}
+              stroke="#444"
+              strokeWidth={2}
+            />
 
             {/* Puzzle pieces */}
             {manifest.pieces.map((piece: any) => {
@@ -45,12 +81,33 @@ const KonvaStage = dynamic(
                   state={state}
                   manifest={manifest}
                   stageSize={stageSize}
+                  playAreaHeight={playAreaHeight}
                   onDragEnd={handlePieceDragEnd}
                   KonvaImage={KonvaImage}
                   useImage={useImage}
+                  scrollX={scrollX}
+                  trayHeight={trayHeight}
                 />
               )
             })}
+            
+            {/* Scroll indicators */}
+            {scrollX.current > 0 && (
+              <Group>
+                <Rect
+                  x={0}
+                  y={playAreaHeight}
+                  width={40}
+                  height={trayHeight}
+                  fill="rgba(0,0,0,0.5)"
+                />
+                <Line
+                  points={[25, playAreaHeight + trayHeight/2 - 10, 15, playAreaHeight + trayHeight/2, 25, playAreaHeight + trayHeight/2 + 10]}
+                  stroke="white"
+                  strokeWidth={2}
+                />
+              </Group>
+            )}
           </Layer>
         </Stage>
       )
@@ -59,19 +116,30 @@ const KonvaStage = dynamic(
   { ssr: false }
 )
 
-function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, onDragEnd, KonvaImage, useImage }: any) {
+function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight }: any) {
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image] = useImage(imageUrl)
   const [position, setPosition] = useState({ x: state.currentX, y: state.currentY })
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     if (state.isPlaced) {
       setPosition({ 
         x: piece.x + (stageSize.width - manifest.size) / 2, 
-        y: piece.y + (stageSize.height - manifest.size) / 2 
+        y: piece.y + (playAreaHeight - manifest.size) / 2 
+      })
+    } else if (!isDragging) {
+      // Update position for pieces in tray when scrolling
+      setPosition({
+        x: state.currentX - scrollX.current,
+        y: state.currentY
       })
     }
-  }, [state.isPlaced, piece.x, piece.y, stageSize, manifest.size])
+  }, [state.isPlaced, state.currentX, state.currentY, piece.x, piece.y, stageSize.width, playAreaHeight, manifest.size, scrollX.current, isDragging])
+
+  // Don't render pieces that are scrolled out of view
+  if (!state.isPlaced && position.x + 128 < 0) return null
+  if (!state.isPlaced && position.x > stageSize.width) return null
 
   return (
     <KonvaImage
@@ -79,12 +147,17 @@ function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, onDragEn
       x={position.x}
       y={position.y}
       draggable={!state.isPlaced}
+      onDragStart={() => setIsDragging(true)}
       onDragEnd={(e: any) => {
         const node = e.target
         const x = node.x()
         const y = node.y()
         setPosition({ x, y })
-        onDragEnd(id, x, y)
+        setIsDragging(false)
+        
+        // Adjust x position for scroll when saving
+        const adjustedX = y > playAreaHeight ? x + scrollX.current : x
+        onDragEnd(id, adjustedX, y)
       }}
       shadowColor="black"
       shadowBlur={state.isPlaced ? 0 : 5}
@@ -105,6 +178,12 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   const stageRef = useRef<StageType>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
+  const trayHeight = 200 // Height of the piece tray
+  const pieceSize = 128 // Size of each piece
+  const pieceSpacing = 20 // Spacing between pieces in tray
+  const scrollX = useRef(0)
+  const [, forceUpdate] = useState({})
+  
   const [puzzleState, setPuzzleState] = useState<PuzzleState>(() => {
     // Load saved state from localStorage
     if (typeof window !== 'undefined') {
@@ -114,15 +193,17 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
       }
     }
 
-    // Initialize new state with random positions
+    // Initialize new state with pieces in the tray
     const pieces: PuzzleState['pieces'] = {}
-    const margin = 150
-    manifest.pieces.forEach((piece) => {
+    let trayX = pieceSpacing
+    
+    manifest.pieces.forEach((piece, index) => {
       pieces[piece.id] = {
-        currentX: Math.random() * (stageSize.width - margin * 2) + margin,
-        currentY: Math.random() * (stageSize.height - margin * 2) + margin,
+        currentX: trayX,
+        currentY: stageSize.height - trayHeight + pieceSpacing,
         isPlaced: false
       }
+      trayX += pieceSize + pieceSpacing
     })
     return { pieces }
   })
@@ -168,17 +249,34 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     }
   }, [puzzleState.pieces, manifest.pieces.length])
 
+  // Handle mouse wheel scrolling in tray
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.offsetY > stageSize.height - trayHeight) {
+        e.preventDefault()
+        const delta = e.deltaX || e.deltaY
+        scrollX.current = Math.max(0, scrollX.current + delta)
+        forceUpdate({})
+      }
+    }
+
+    window.addEventListener('wheel', handleWheel, { passive: false })
+    return () => window.removeEventListener('wheel', handleWheel)
+  }, [stageSize.height, trayHeight])
+
   const handlePieceDragEnd = (pieceId: number, x: number, y: number) => {
     const piece = manifest.pieces.find(p => p.id === pieceId)
     if (!piece) return
 
+    const playAreaHeight = stageSize.height - trayHeight
     const snapDistance = 30 // pixels
     const targetX = piece.x + (stageSize.width - manifest.size) / 2
-    const targetY = piece.y + (stageSize.height - manifest.size) / 2
+    const targetY = piece.y + (playAreaHeight - manifest.size) / 2
     
     const isSnapped = 
       Math.abs(x - targetX) < snapDistance && 
-      Math.abs(y - targetY) < snapDistance
+      Math.abs(y - targetY) < snapDistance &&
+      y < playAreaHeight // Must be in play area
 
     setPuzzleState(prev => ({
       ...prev,
@@ -195,23 +293,26 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
 
   const resetPuzzle = () => {
     const pieces: PuzzleState['pieces'] = {}
-    const margin = 150
+    let trayX = pieceSpacing
+    
     manifest.pieces.forEach((piece) => {
       pieces[piece.id] = {
-        currentX: Math.random() * (stageSize.width - margin * 2) + margin,
-        currentY: Math.random() * (stageSize.height - margin * 2) + margin,
+        currentX: trayX,
+        currentY: stageSize.height - trayHeight + pieceSpacing,
         isPlaced: false
       }
+      trayX += pieceSize + pieceSpacing
     })
     setPuzzleState({ pieces })
     setIsCompleted(false)
+    scrollX.current = 0
   }
 
   const placedCount = Object.values(puzzleState.pieces).filter(p => p.isPlaced).length
   const progress = (placedCount / manifest.pieces.length) * 100
 
   return (
-    <div className="relative h-screen bg-gray-900">
+    <div className="relative h-screen bg-gray-900 overflow-hidden">
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 bg-gray-800 text-white p-4 z-10">
         <div className="container mx-auto flex items-center justify-between">
@@ -256,8 +357,15 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
           stageSize={stageSize}
           stageRef={stageRef}
           backgroundImage={backgroundImage}
+          trayHeight={trayHeight}
+          scrollX={scrollX}
         />
       </Suspense>
+
+      {/* Scroll hint */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm opacity-70 pointer-events-none">
+        Scroll horizontally in the tray to see more pieces
+      </div>
 
       {/* Completion Modal */}
       {isCompleted && (
