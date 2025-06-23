@@ -5,14 +5,9 @@ Run this script from the project root directory.
 """
 
 import sys
+import subprocess
 from pathlib import Path
 
-# Add backend directory to Python path
-backend_dir = Path(__file__).parent / "backend"
-sys.path.insert(0, str(backend_dir))
-
-# Import and run the CLI
-from cli import main
-
 if __name__ == '__main__':
-    main()
+    # Run the backend module with the provided arguments
+    subprocess.run([sys.executable, '-m', 'backend'] + sys.argv[1:])

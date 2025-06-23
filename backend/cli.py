@@ -11,9 +11,11 @@ from datetime import datetime
 import tempfile
 import shutil
 
-# Add the backend directory to Python path
-backend_dir = Path(__file__).parent.absolute()
-sys.path.insert(0, str(backend_dir))
+# Fix imports when running as a script
+if __name__ == '__main__':
+    backend_dir = Path(__file__).parent.absolute()
+    parent_dir = backend_dir.parent
+    sys.path.insert(0, str(parent_dir))
 
 import click
 from rich.console import Console
@@ -23,12 +25,21 @@ from rich.panel import Panel
 from rich import box
 from openai import OpenAI
 
-from agents.prompt_artisan import PromptArtisan
-from agents.quality_guardian import QualityGuardian
-from agents.digital_cutter import DigitalCutter
-from core.config import settings
-from core.models import CuttingStyle, PuzzleGenerationStatus, PuzzleGenerationResult
-from core.utils import setup_logging, ensure_directory, format_puzzle_id, console
+# Try absolute imports first, fall back to relative
+try:
+    from backend.agents.prompt_artisan import PromptArtisan
+    from backend.agents.quality_guardian import QualityGuardian
+    from backend.agents.digital_cutter import DigitalCutter
+    from backend.core.config import settings
+    from backend.core.models import CuttingStyle, PuzzleGenerationStatus, PuzzleGenerationResult
+    from backend.core.utils import setup_logging, ensure_directory, format_puzzle_id, console
+except ImportError:
+    from agents.prompt_artisan import PromptArtisan
+    from agents.quality_guardian import QualityGuardian
+    from agents.digital_cutter import DigitalCutter
+    from core.config import settings
+    from core.models import CuttingStyle, PuzzleGenerationStatus, PuzzleGenerationResult
+    from core.utils import setup_logging, ensure_directory, format_puzzle_id, console
 
 
 # Setup logging

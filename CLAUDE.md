@@ -44,25 +44,25 @@ cp .env.example .env
 
 ### Puzzle Generation
 ```bash
-# From backend directory
-cd backend
-python cli.py --count 20
+# Recommended: From project root using module
+python -m backend --count 20
 
-# From project root
-python generate_puzzles.py --count 20
+# Alternative: Using runner script from backend directory
+cd backend
+python run.py --count 20
 
 # Generate 10 puzzles with high complexity
-python generate_puzzles.py --count 10 --complexity 0.8
+python -m backend --count 10 --complexity 0.8
 
 # Use different cutting styles
-python generate_puzzles.py --style geometric
-python generate_puzzles.py --style organic
+python -m backend --style geometric
+python -m backend --style organic
 
 # Custom output directory
-python generate_puzzles.py --output /path/to/puzzles
+python -m backend --output /path/to/puzzles
 
 # Enable debug mode
-python generate_puzzles.py --debug
+python -m backend --debug
 ```
 
 ### Testing
