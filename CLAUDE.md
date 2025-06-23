@@ -23,23 +23,54 @@ The system consists of four main agents working in a pipeline:
 - Lazy-loading for puzzle pieces
 - Local Storage for optional save states
 
-### Backend (Planned)
+### Backend (Implemented)
 - Python CLI for asset generation
-- OpenAI API for image generation
+- OpenAI API for image generation via DALL-E 3
 - OpenCV and NumPy for image quality analysis
-- Pillow for image processing
+- Pillow for image processing and piece generation
+- Rich terminal UI with progress tracking
 
 ## Development Commands
 
-Since this is a new project without implementation yet, here are the planned commands based on the specification:
-
-### Python Asset Factory
+### Backend Setup
 ```bash
-# Generate puzzle assets (planned)
-python cli/generate_puzzles.py --count 20 --output public/puzzles/
+cd backend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env
+# Edit .env and add your OpenAI API key
+```
 
-# Test image quality metrics
-python cli/test_quality.py --image path/to/test.jpg
+### Puzzle Generation
+```bash
+# Generate 20 puzzles with default settings
+python backend/cli.py
+
+# Generate 10 puzzles with high complexity
+python backend/cli.py --count 10 --complexity 0.8
+
+# Use different cutting styles
+python backend/cli.py --style geometric
+python backend/cli.py --style organic
+
+# Custom output directory
+python backend/cli.py --output /path/to/puzzles
+
+# Enable debug mode
+python backend/cli.py --debug
+```
+
+### Testing
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=backend --cov-report=html
+
+# Run specific test file
+pytest tests/test_quality_guardian.py -v
 ```
 
 ### Frontend Development
@@ -72,6 +103,8 @@ npm test
 /public/puzzles/
    0001/
        manifest.json          // piece coordinates
+       metadata.json          // generation details and quality scores
+       original.jpg           // full puzzle image
        piece_000.png ... piece_255.png  // 128x128 transparent PNGs
 ```
 
