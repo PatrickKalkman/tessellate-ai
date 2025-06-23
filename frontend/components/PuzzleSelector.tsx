@@ -6,8 +6,10 @@ interface PuzzleInfo {
   thumbnailUrl: string
   metadata?: {
     prompt: string
-    quality_score: number
-    generation_time: string
+    quality_metrics: {
+      overall_score: number
+    }
+    timestamp: string
   }
 }
 
@@ -92,7 +94,7 @@ export default function PuzzleSelector({ onSelect }: PuzzleSelectorProps) {
                 {puzzle.metadata && (
                   <>
                     <p className="text-sm text-gray-600 mb-1">
-                      Quality Score: {puzzle.metadata.quality_score.toFixed(1)}
+                      Quality Score: {puzzle.metadata.quality_metrics.overall_score.toFixed(1)}
                     </p>
                     <p className="text-sm text-gray-600 line-clamp-2">
                       {puzzle.metadata.prompt}
