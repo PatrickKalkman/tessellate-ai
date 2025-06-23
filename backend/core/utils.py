@@ -1,12 +1,18 @@
-import os
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Union
+from typing import Union
+
 import numpy as np
 from PIL import Image
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeRemainingColumn,
+)
 
 # Initialize rich console
 console = Console()
@@ -16,8 +22,8 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
     """Setup logging configuration"""
     logging.basicConfig(
         level=getattr(logging, level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     return logging.getLogger("tessellate-ai")
 
@@ -32,7 +38,7 @@ def ensure_directory(path: Union[str, Path]) -> Path:
 def save_json(data: dict, filepath: Union[str, Path]) -> None:
     """Save dictionary to JSON file"""
     filepath = Path(filepath)
-    with open(filepath, 'w') as f:
+    with open(filepath, "w") as f:
         json.dump(data, f, indent=2)
 
 
@@ -65,7 +71,7 @@ def create_progress_bar() -> Progress:
         BarColumn(),
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         TimeRemainingColumn(),
-        console=console
+        console=console,
     )
 
 
@@ -74,7 +80,9 @@ def format_puzzle_id(index: int) -> str:
     return f"{index:04d}"
 
 
-def calculate_piece_position(piece_index: int, grid_cols: int, piece_size: int) -> tuple[int, int]:
+def calculate_piece_position(
+    piece_index: int, grid_cols: int, piece_size: int
+) -> tuple[int, int]:
     """Calculate the x, y position of a piece based on its index"""
     row = piece_index // grid_cols
     col = piece_index % grid_cols

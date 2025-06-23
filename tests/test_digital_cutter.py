@@ -107,8 +107,10 @@ class TestDigitalCutter:
         # Verify RGBA mode
         assert piece_img.mode == 'RGBA'
         
-        # Check that piece has expected size
-        assert piece_img.size == (digital_cutter.piece_size, digital_cutter.piece_size)
+        # Check that piece size accommodates tabs (can be larger than piece_size)
+        expected_max_size = digital_cutter.piece_size + 2 * digital_cutter.tab_size
+        assert piece_img.width <= expected_max_size
+        assert piece_img.height <= expected_max_size
         
         # Verify some pixels are transparent (alpha < 255)
         piece_array = np.array(piece_img)
@@ -225,5 +227,5 @@ class TestDigitalCutter:
         
         # Test extraction at corner (should handle boundary correctly)
         piece = digital_cutter._extract_piece(image, 0, 0, mask)
-        assert piece.size == (digital_cutter.piece_size, digital_cutter.piece_size)
+        assert piece.size == mask.size  # Piece should match mask size
         assert piece.mode == 'RGBA'

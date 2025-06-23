@@ -23,6 +23,7 @@ export interface PuzzleState {
       currentX: number
       currentY: number
       isPlaced: boolean
+      isOnBoard?: boolean  // Track if piece is on board but not necessarily in correct position
     }
   }
   completedAt?: string

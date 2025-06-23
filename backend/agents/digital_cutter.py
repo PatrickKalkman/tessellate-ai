@@ -212,35 +212,63 @@ class DigitalCutter:
             mid_x = (x0 + x1) / 2 + variation
             tab_height = self.tab_size if edge_type == 'tab' else -self.tab_size
             
-            # Create smooth curve using multiple points
+            # Create more realistic jigsaw curve
+            # Start segment length
+            start_segment = (mid_x - x0) * 0.35
+            
             points = [
                 (x0, y0),
-                (x0 + (mid_x - x0) * 0.3, y0),
-                (x0 + (mid_x - x0) * 0.5, y0 + tab_height * 0.3),
-                (x0 + (mid_x - x0) * 0.7, y0 + tab_height * 0.8),
-                (mid_x - self.tab_size/2, y0 + tab_height),
-                (mid_x, y0 + tab_height),
-                (mid_x + self.tab_size/2, y0 + tab_height),
-                (x1 - (x1 - mid_x) * 0.7, y0 + tab_height * 0.8),
-                (x1 - (x1 - mid_x) * 0.5, y0 + tab_height * 0.3),
-                (x1 - (x1 - mid_x) * 0.3, y0),
+                # Lead-in to tab
+                (x0 + start_segment, y0),
+                (x0 + start_segment + 10, y0 + tab_height * 0.1),
+                (x0 + start_segment + 15, y0 + tab_height * 0.3),
+                (x0 + start_segment + 20, y0 + tab_height * 0.6),
+                # Tab neck
+                (mid_x - self.tab_size * 0.7, y0 + tab_height * 0.9),
+                # Tab head (circular bulge)
+                (mid_x - self.tab_size * 0.5, y0 + tab_height),
+                (mid_x - self.tab_size * 0.3, y0 + tab_height * 1.1),
+                (mid_x, y0 + tab_height * 1.15),
+                (mid_x + self.tab_size * 0.3, y0 + tab_height * 1.1),
+                (mid_x + self.tab_size * 0.5, y0 + tab_height),
+                # Tab neck (other side)
+                (mid_x + self.tab_size * 0.7, y0 + tab_height * 0.9),
+                # Lead-out from tab
+                (x1 - start_segment - 20, y0 + tab_height * 0.6),
+                (x1 - start_segment - 15, y0 + tab_height * 0.3),
+                (x1 - start_segment - 10, y0 + tab_height * 0.1),
+                (x1 - start_segment, y0),
                 (x1, y1)
             ]
         else:  # vertical
             mid_y = (y0 + y1) / 2 + variation
             tab_width = self.tab_size if edge_type == 'tab' else -self.tab_size
             
+            # Create more realistic jigsaw curve
+            start_segment = (mid_y - y0) * 0.35
+            
             points = [
                 (x0, y0),
-                (x0, y0 + (mid_y - y0) * 0.3),
-                (x0 + tab_width * 0.3, y0 + (mid_y - y0) * 0.5),
-                (x0 + tab_width * 0.8, y0 + (mid_y - y0) * 0.7),
-                (x0 + tab_width, mid_y - self.tab_size/2),
-                (x0 + tab_width, mid_y),
-                (x0 + tab_width, mid_y + self.tab_size/2),
-                (x0 + tab_width * 0.8, y1 - (y1 - mid_y) * 0.7),
-                (x0 + tab_width * 0.3, y1 - (y1 - mid_y) * 0.5),
-                (x0, y1 - (y1 - mid_y) * 0.3),
+                # Lead-in to tab
+                (x0, y0 + start_segment),
+                (x0 + tab_width * 0.1, y0 + start_segment + 10),
+                (x0 + tab_width * 0.3, y0 + start_segment + 15),
+                (x0 + tab_width * 0.6, y0 + start_segment + 20),
+                # Tab neck
+                (x0 + tab_width * 0.9, mid_y - self.tab_size * 0.7),
+                # Tab head (circular bulge)
+                (x0 + tab_width, mid_y - self.tab_size * 0.5),
+                (x0 + tab_width * 1.1, mid_y - self.tab_size * 0.3),
+                (x0 + tab_width * 1.15, mid_y),
+                (x0 + tab_width * 1.1, mid_y + self.tab_size * 0.3),
+                (x0 + tab_width, mid_y + self.tab_size * 0.5),
+                # Tab neck (other side)
+                (x0 + tab_width * 0.9, mid_y + self.tab_size * 0.7),
+                # Lead-out from tab
+                (x0 + tab_width * 0.6, y1 - start_segment - 20),
+                (x0 + tab_width * 0.3, y1 - start_segment - 15),
+                (x0 + tab_width * 0.1, y1 - start_segment - 10),
+                (x0, y1 - start_segment),
                 (x1, y1)
             ]
         
@@ -351,22 +379,27 @@ class DigitalCutter:
         # Extract the region
         piece_region = image.crop((x_start, y_start, x_end, y_end))
         
-        # Create a new image for the piece
-        piece = Image.new('RGBA', (self.piece_size, self.piece_size), (0, 0, 0, 0))
+        # Create a new image for the piece that's large enough for tabs
+        # Use the mask size to ensure tabs aren't clipped
+        piece = Image.new('RGBA', mask.size, (0, 0, 0, 0))
         
         # Apply mask to extracted region
         if piece_region.size != mask.size:
             # Adjust mask if needed due to boundary clipping
-            mask = mask.crop((0, 0, piece_region.width, piece_region.height))
+            mask_crop_x = 0 if x_start >= 0 else abs(x_start)
+            mask_crop_y = 0 if y_start >= 0 else abs(y_start)
+            mask = mask.crop((mask_crop_x, mask_crop_y, 
+                            mask_crop_x + piece_region.width, 
+                            mask_crop_y + piece_region.height))
         
         # Composite the piece
         piece_with_mask = Image.new('RGBA', piece_region.size)
         piece_with_mask.paste(piece_region, (0, 0))
         piece_with_mask.putalpha(mask)
         
-        # Paste into final piece image (centered)
-        paste_x = (self.piece_size - piece_with_mask.width) // 2
-        paste_y = (self.piece_size - piece_with_mask.height) // 2
+        # Paste into final piece image at the correct offset
+        paste_x = self.tab_size if x_start >= 0 else 0
+        paste_y = self.tab_size if y_start >= 0 else 0
         piece.paste(piece_with_mask, (paste_x, paste_y), piece_with_mask)
         
         return piece

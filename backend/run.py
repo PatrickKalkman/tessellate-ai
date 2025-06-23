@@ -14,5 +14,5 @@ sys.path.insert(0, str(backend_dir.parent))
 # Now we can import from backend as a package
 from backend.cli import main
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

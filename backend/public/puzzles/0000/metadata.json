@@ -1,14 +1,14 @@
 {
   "puzzle_id": "0000",
-  "prompt": "Ultra-realistic photograph, dense rainforest canopy with wildlife, balanced composition, varied textures, professional lighting, 8K resolution, sharp focus, suitable for jigsaw puzzle",
+  "prompt": "Ultra-realistic photograph, field of wildflowers at golden hour, varied textures, multiple subjects, professional lighting, 8K resolution, sharp focus",
   "complexity": 0.5,
   "style": "classic",
   "quality_metrics": {
-    "edge_density": 17.287540435791016,
-    "color_entropy": 2.9474639892578125,
+    "edge_density": 7.590675354003906,
+    "color_entropy": 2.462141990661621,
     "local_contrast": 100.0,
-    "overall_score": 50.50238609313965
+    "overall_score": 45.894700050354004
   },
-  "timestamp": "2025-06-23T10:42:13.749706",
+  "timestamp": "2025-06-23T16:21:39.681820",
   "total_pieces": 256
 }

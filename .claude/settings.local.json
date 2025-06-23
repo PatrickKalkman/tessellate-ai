@@ -6,7 +6,11 @@
       "Bash(git commit:*)",
       "Bash(pip search:*)",
       "WebFetch(domain:github.com)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(git reset:*)",
+      "Bash(npm run build:*)",
+      "Bash(find:*)",
+      "Bash(python:*)"
     ],
     "deny": []
   }

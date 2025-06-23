@@ -10,7 +10,7 @@ const KonvaStage = dynamic(
     const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await import('react-konva')
     const useImage = (await import('use-image')).default
     
-    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX }: any) {
+    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceSize, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleSize }: any) {
       const playAreaHeight = stageSize.height - trayHeight
       
       return (
@@ -25,7 +25,9 @@ const KonvaStage = dynamic(
             if (evt.offsetY > playAreaHeight) {
               evt.preventDefault()
               const delta = evt.deltaX || evt.deltaY
-              scrollX.current = Math.max(0, scrollX.current + delta)
+              const newScrollX = Math.max(0, scrollX.current + delta)
+              scrollX.current = newScrollX
+              setCurrentScrollX(newScrollX)
             }
           }}
         >
@@ -43,34 +45,65 @@ const KonvaStage = dynamic(
             {backgroundImage && (
               <KonvaImage
                 image={backgroundImage}
-                x={(stageSize.width - manifest.size) / 2}
-                y={(playAreaHeight - manifest.size) / 2}
-                width={manifest.size}
-                height={manifest.size}
+                x={(stageSize.width - scaledPuzzleSize) / 2}
+                y={(playAreaHeight - scaledPuzzleSize) / 2}
+                width={scaledPuzzleSize}
+                height={scaledPuzzleSize}
                 opacity={0.2}
               />
             )}
 
-            {/* Tray area background */}
+            {/* Tray area background - extends beyond screen */}
             <Rect
-              x={0}
+              x={-currentScrollX}
               y={playAreaHeight}
-              width={stageSize.width}
+              width={Math.max(stageSize.width, manifest.pieces.length * (pieceSize + pieceSpacing) + pieceSpacing)}
               height={trayHeight}
               fill="#2a2a2a"
             />
             
-            {/* Separator line */}
+            {/* Separator line - extends with tray */}
             <Line
-              points={[0, playAreaHeight, stageSize.width, playAreaHeight]}
+              points={[-currentScrollX, playAreaHeight, Math.max(stageSize.width, manifest.pieces.length * (pieceSize + pieceSpacing) + pieceSpacing) - currentScrollX, playAreaHeight]}
               stroke="#444"
               strokeWidth={2}
             />
 
-            {/* Puzzle pieces */}
-            {manifest.pieces.map((piece: any) => {
+            {/* Unplaced pieces in tray - wrapped in a scrollable group */}
+            <Group x={-currentScrollX} y={0}>
+              {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
+                const state = puzzleState.pieces[piece.id]
+                if (!state || state.isPlaced || state.isOnBoard) return null
+
+                return (
+                  <PuzzlePiece
+                    key={piece.id}
+                    id={piece.id}
+                    puzzleId={puzzleId}
+                    piece={piece}
+                    state={state}
+                    manifest={manifest}
+                    stageSize={stageSize}
+                    playAreaHeight={playAreaHeight}
+                    onDragEnd={handlePieceDragEnd}
+                    KonvaImage={KonvaImage}
+                    useImage={useImage}
+                    scrollX={scrollX}
+                    trayHeight={trayHeight}
+                    currentScrollX={currentScrollX}
+                    Rect={Rect}
+                    scale={scale}
+                    puzzleOffsetX={puzzleOffsetX}
+                    puzzleOffsetY={puzzleOffsetY}
+                  />
+                )
+              })}
+            </Group>
+
+            {/* Pieces on board but not correctly placed (not affected by scroll) */}
+            {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
               const state = puzzleState.pieces[piece.id]
-              if (!state) return null
+              if (!state || state.isPlaced || !state.isOnBoard) return null
 
               return (
                 <PuzzlePiece
@@ -87,12 +120,46 @@ const KonvaStage = dynamic(
                   useImage={useImage}
                   scrollX={scrollX}
                   trayHeight={trayHeight}
+                  currentScrollX={currentScrollX}
+                  Rect={Rect}
+                  scale={scale}
+                  puzzleOffsetX={puzzleOffsetX}
+                  puzzleOffsetY={puzzleOffsetY}
+                />
+              )
+            })}
+
+            {/* Correctly placed pieces (not affected by scroll) - rendered AFTER tray elements */}
+            {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
+              const state = puzzleState.pieces[piece.id]
+              if (!state || !state.isPlaced) return null
+
+              return (
+                <PuzzlePiece
+                  key={piece.id}
+                  id={piece.id}
+                  puzzleId={puzzleId}
+                  piece={piece}
+                  state={state}
+                  manifest={manifest}
+                  stageSize={stageSize}
+                  playAreaHeight={playAreaHeight}
+                  onDragEnd={handlePieceDragEnd}
+                  KonvaImage={KonvaImage}
+                  useImage={useImage}
+                  scrollX={scrollX}
+                  trayHeight={trayHeight}
+                  currentScrollX={currentScrollX}
+                  Rect={Rect}
+                  scale={scale}
+                  puzzleOffsetX={puzzleOffsetX}
+                  puzzleOffsetY={puzzleOffsetY}
                 />
               )
             })}
             
             {/* Scroll indicators */}
-            {scrollX.current > 0 && (
+            {currentScrollX > 0 && (
               <Group>
                 <Rect
                   x={0}
@@ -116,48 +183,82 @@ const KonvaStage = dynamic(
   { ssr: false }
 )
 
-function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight }: any) {
+function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY }: any) {
+  const pieceSize = 128 // Size of each piece
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image] = useImage(imageUrl)
   const [position, setPosition] = useState({ x: state.currentX, y: state.currentY })
   const [isDragging, setIsDragging] = useState(false)
+  
+  
+
+  // For pieces on the board (placed or not), use the stored position directly
+  // This prevents recalculation when stageSize changes
+  // Apply scale transform only for correctly placed pieces
+  const displayX = state.isPlaced 
+    ? puzzleOffsetX + (piece.x * scale)
+    : (state.isOnBoard ? state.currentX : position.x)
+  const displayY = state.isPlaced 
+    ? puzzleOffsetY + (piece.y * scale)
+    : (state.isOnBoard ? state.currentY : position.y)
 
   useEffect(() => {
-    if (state.isPlaced) {
-      setPosition({ 
-        x: piece.x + (stageSize.width - manifest.size) / 2, 
-        y: piece.y + (playAreaHeight - manifest.size) / 2 
-      })
-    } else if (!isDragging) {
-      // Update position for pieces in tray when scrolling
+    if (!state.isPlaced && !state.isOnBoard && !isDragging) {
+      // Only update position for pieces in the tray
       setPosition({
-        x: state.currentX - scrollX.current,
+        x: state.currentX,
         y: state.currentY
       })
     }
-  }, [state.isPlaced, state.currentX, state.currentY, piece.x, piece.y, stageSize.width, playAreaHeight, manifest.size, scrollX.current, isDragging])
+  }, [state.isPlaced, state.isOnBoard, isDragging, state.currentX, state.currentY])
 
-  // Don't render pieces that are scrolled out of view
-  if (!state.isPlaced && position.x + 128 < 0) return null
-  if (!state.isPlaced && position.x > stageSize.width) return null
 
+
+  // Don't render pieces that are scrolled out of view (only for pieces in tray)
+  if (!state.isPlaced && !state.isOnBoard && position.x + 128 < currentScrollX) return null
+  if (!state.isPlaced && !state.isOnBoard && position.x > currentScrollX + stageSize.width) return null
+
+  // Scale pieces when they're on the board (not just when correctly placed)
+  const shouldScale = state.isPlaced || state.isOnBoard || (isDragging && position.y < playAreaHeight)
+  const currentScale = shouldScale ? scale : 1
+  
   return (
     <KonvaImage
       image={image}
-      x={position.x}
-      y={position.y}
-      draggable={!state.isPlaced}
+      x={displayX}
+      y={displayY}
+      width={pieceSize * currentScale}
+      height={pieceSize * currentScale}
+      draggable={!state.isPlaced}  // Only correctly placed pieces are not draggable
       onDragStart={() => setIsDragging(true)}
+      onDragMove={(e: any) => {
+        // Update position during drag to trigger scaling when crossing play area boundary
+        const node = e.target
+        const pos = node.getAbsolutePosition()
+        setPosition({ x: pos.x, y: pos.y })
+      }}
       onDragEnd={(e: any) => {
         const node = e.target
-        const x = node.x()
-        const y = node.y()
-        setPosition({ x, y })
-        setIsDragging(false)
+        const layer = node.getLayer()
+        const stage = node.getStage()
         
-        // Adjust x position for scroll when saving
-        const adjustedX = y > playAreaHeight ? x + scrollX.current : x
-        onDragEnd(id, adjustedX, y)
+        // Get absolute position on the stage
+        const absolutePos = node.getAbsolutePosition()
+        
+        // For pieces dropped on the board, use the absolute position directly
+        // For pieces in the tray, we need to calculate the position within the scrollable area
+        if (absolutePos.y < playAreaHeight) {
+          // Piece is on the board - use absolute position
+          setPosition({ x: absolutePos.x, y: absolutePos.y })
+          onDragEnd(id, absolutePos.x, absolutePos.y)
+        } else {
+          // Piece is in the tray - calculate position accounting for scroll
+          const trayX = absolutePos.x + currentScrollX
+          setPosition({ x: trayX, y: absolutePos.y })
+          onDragEnd(id, trayX, absolutePos.y)
+        }
+        
+        setIsDragging(false)
       }}
       shadowColor="black"
       shadowBlur={state.isPlaced ? 0 : 5}
@@ -178,32 +279,70 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   const stageRef = useRef<StageType>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
-  const trayHeight = 200 // Height of the piece tray
+  const trayHeight = 160 // Height of the piece tray (slightly higher than piece size)
   const pieceSize = 128 // Size of each piece
-  const pieceSpacing = 20 // Spacing between pieces in tray
+  const pieceSpacing = 40 // Spacing between pieces in tray to prevent overlap
+  const trayPaddingTop = 16 // Top padding for pieces in tray
   const scrollX = useRef(0)
   const [, forceUpdate] = useState({})
+  const [currentScrollX, setCurrentScrollX] = useState(0)
+  
+  // Calculate scale to fit puzzle in available space
+  const playAreaHeight = stageSize.height - trayHeight
+  const padding = 40 // Padding around the puzzle
+  const maxPuzzleWidth = stageSize.width - padding * 2
+  const maxPuzzleHeight = playAreaHeight - padding * 2
+  const scale = Math.min(maxPuzzleWidth / manifest.size, maxPuzzleHeight / manifest.size, 1)
+  const scaledPuzzleSize = manifest.size * scale
+  const puzzleOffsetX = (stageSize.width - scaledPuzzleSize) / 2
+  const puzzleOffsetY = (playAreaHeight - scaledPuzzleSize) / 2
   
   const [puzzleState, setPuzzleState] = useState<PuzzleState>(() => {
     // Load saved state from localStorage
     if (typeof window !== 'undefined') {
       const savedState = localStorage.getItem(`puzzle-${puzzleId}`)
       if (savedState) {
-        return JSON.parse(savedState)
+        const parsed = JSON.parse(savedState)
+        // Recalculate positions for unplaced pieces
+        const initialHeight = window.innerHeight - 80
+        const initialY = initialHeight - trayHeight + trayPaddingTop
+        
+        // Sort pieces by ID and reset positions for unplaced ones
+        const sortedPieces = [...manifest.pieces].sort((a, b) => a.id - b.id)
+        let unplacedIndex = 0
+        
+        sortedPieces.forEach((manifestPiece) => {
+          const savedPiece = parsed.pieces[manifestPiece.id]
+          if (savedPiece && !savedPiece.isPlaced) {
+            // Reset position for unplaced pieces
+            savedPiece.currentX = pieceSpacing + (unplacedIndex * (pieceSize + pieceSpacing))
+            savedPiece.currentY = initialY
+            unplacedIndex++
+          }
+        })
+        
+        return parsed
       }
     }
 
     // Initialize new state with pieces in the tray
     const pieces: PuzzleState['pieces'] = {}
-    let trayX = pieceSpacing
     
-    manifest.pieces.forEach((piece, index) => {
+    // Sort pieces by ID to ensure sequential layout
+    const sortedPieces = [...manifest.pieces].sort((a, b) => a.id - b.id)
+    
+    // Calculate initial Y position based on window height
+    const initialHeight = typeof window !== 'undefined' ? window.innerHeight - 80 : 600
+    const initialY = initialHeight - trayHeight + trayPaddingTop
+    
+    sortedPieces.forEach((piece, index) => {
+      const trayX = pieceSpacing + (index * (pieceSize + pieceSpacing))
       pieces[piece.id] = {
         currentX: trayX,
-        currentY: stageSize.height - trayHeight + pieceSpacing,
-        isPlaced: false
+        currentY: initialY,
+        isPlaced: false,
+        isOnBoard: false
       }
-      trayX += pieceSize + pieceSpacing
     })
     return { pieces }
   })
@@ -220,15 +359,33 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   // Update stage size on mount and resize
   useEffect(() => {
     const updateSize = () => {
+      const newHeight = window.innerHeight - 80 // Leave space for header
       setStageSize({
         width: window.innerWidth,
-        height: window.innerHeight - 80 // Leave space for header
+        height: newHeight
+      })
+      
+      // Update Y position for unplaced pieces when stage size changes
+      setPuzzleState(prev => {
+        const updatedPieces = { ...prev.pieces }
+        let hasUpdates = false
+        const newY = newHeight - trayHeight + trayPaddingTop
+        
+        Object.keys(updatedPieces).forEach(id => {
+          const piece = updatedPieces[parseInt(id)]
+          // Only update if piece is in tray and Y position changed significantly
+          if (!piece.isPlaced && Math.abs(piece.currentY - newY) > 5) {
+            piece.currentY = newY
+            hasUpdates = true
+          }
+        })
+        return hasUpdates ? { ...prev, pieces: updatedPieces } : prev
       })
     }
     updateSize()
     window.addEventListener('resize', updateSize)
     return () => window.removeEventListener('resize', updateSize)
-  }, [])
+  }, [trayHeight, trayPaddingTop])
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
@@ -249,34 +406,26 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     }
   }, [puzzleState.pieces, manifest.pieces.length])
 
-  // Handle mouse wheel scrolling in tray
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (e.offsetY > stageSize.height - trayHeight) {
-        e.preventDefault()
-        const delta = e.deltaX || e.deltaY
-        scrollX.current = Math.max(0, scrollX.current + delta)
-        forceUpdate({})
-      }
-    }
-
-    window.addEventListener('wheel', handleWheel, { passive: false })
-    return () => window.removeEventListener('wheel', handleWheel)
-  }, [stageSize.height, trayHeight])
+  // Removed window wheel event listener - using Stage onWheel instead to avoid conflicts
 
   const handlePieceDragEnd = (pieceId: number, x: number, y: number) => {
     const piece = manifest.pieces.find(p => p.id === pieceId)
     if (!piece) return
 
     const playAreaHeight = stageSize.height - trayHeight
-    const snapDistance = 30 // pixels
-    const targetX = piece.x + (stageSize.width - manifest.size) / 2
-    const targetY = piece.y + (playAreaHeight - manifest.size) / 2
+    const snapDistance = 30 // Keep snap distance constant in screen pixels
+    const targetX = puzzleOffsetX + (piece.x * scale)
+    const targetY = puzzleOffsetY + (piece.y * scale)
     
+    // Check if piece is on the board (not in tray)
+    const isOnBoard = y < playAreaHeight
+    
+    // Check if piece is snapped to correct position
     const isSnapped = 
       Math.abs(x - targetX) < snapDistance && 
       Math.abs(y - targetY) < snapDistance &&
-      y < playAreaHeight // Must be in play area
+      isOnBoard
+
 
     setPuzzleState(prev => ({
       ...prev,
@@ -285,7 +434,8 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
         [pieceId]: {
           currentX: isSnapped ? targetX : x,
           currentY: isSnapped ? targetY : y,
-          isPlaced: isSnapped
+          isPlaced: isSnapped,
+          isOnBoard: isOnBoard  // New field to track if piece is on board
         }
       }
     }))
@@ -293,19 +443,23 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
 
   const resetPuzzle = () => {
     const pieces: PuzzleState['pieces'] = {}
-    let trayX = pieceSpacing
     
-    manifest.pieces.forEach((piece) => {
+    // Sort pieces by ID to ensure sequential layout
+    const sortedPieces = [...manifest.pieces].sort((a, b) => a.id - b.id)
+    
+    sortedPieces.forEach((piece, index) => {
+      const trayX = pieceSpacing + (index * (pieceSize + pieceSpacing))
       pieces[piece.id] = {
         currentX: trayX,
-        currentY: stageSize.height - trayHeight + pieceSpacing,
-        isPlaced: false
+        currentY: stageSize.height - trayHeight + trayPaddingTop,
+        isPlaced: false,
+        isOnBoard: false
       }
-      trayX += pieceSize + pieceSpacing
     })
     setPuzzleState({ pieces })
     setIsCompleted(false)
     scrollX.current = 0
+    setCurrentScrollX(0)
   }
 
   const placedCount = Object.values(puzzleState.pieces).filter(p => p.isPlaced).length
@@ -359,13 +513,47 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
           backgroundImage={backgroundImage}
           trayHeight={trayHeight}
           scrollX={scrollX}
+          setCurrentScrollX={setCurrentScrollX}
+          trayPaddingTop={trayPaddingTop}
+          currentScrollX={currentScrollX}
+          pieceSize={pieceSize}
+          pieceSpacing={pieceSpacing}
+          scale={scale}
+          puzzleOffsetX={puzzleOffsetX}
+          puzzleOffsetY={puzzleOffsetY}
+          scaledPuzzleSize={scaledPuzzleSize}
         />
       </Suspense>
 
-      {/* Scroll hint */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm opacity-70 pointer-events-none">
-        Scroll horizontally in the tray to see more pieces
-      </div>
+      {/* Scroll buttons */}
+      <button
+        onClick={() => {
+          scrollX.current = Math.max(0, scrollX.current - 200)
+          setCurrentScrollX(scrollX.current)
+        }}
+        className={`absolute left-4 transform -translate-y-1/2 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full transition ${currentScrollX <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+        style={{ bottom: `${trayHeight/2}px` }}
+        disabled={currentScrollX <= 0}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+      
+      <button
+        onClick={() => {
+          const maxScroll = Math.max(0, manifest.pieces.length * (pieceSize + pieceSpacing) - stageSize.width + pieceSpacing * 2)
+          scrollX.current = Math.min(maxScroll, scrollX.current + 200)
+          setCurrentScrollX(scrollX.current)
+        }}
+        className={`absolute right-4 transform -translate-y-1/2 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full transition ${currentScrollX >= Math.max(0, manifest.pieces.length * (pieceSize + pieceSpacing) - stageSize.width + pieceSpacing * 2) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        style={{ bottom: `${trayHeight/2}px` }}
+        disabled={currentScrollX >= Math.max(0, manifest.pieces.length * (pieceSize + pieceSpacing) - stageSize.width + pieceSpacing * 2)}
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
 
       {/* Completion Modal */}
       {isCompleted && (
