@@ -1,10 +1,22 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Stage, Layer, Image as KonvaImage, Group } from 'react-konva'
-import Konva from 'konva'
+import dynamic from 'next/dynamic'
 import { PuzzleManifest, PuzzleState } from '@/types/puzzle'
 import useImage from 'use-image'
+import type { Stage as StageType } from 'konva/lib/Stage'
+
+const Stage = dynamic(() => import('react-konva').then((mod) => mod.Stage), {
+  ssr: false,
+})
+
+const Layer = dynamic(() => import('react-konva').then((mod) => mod.Layer), {
+  ssr: false,
+})
+
+const KonvaImage = dynamic(() => import('react-konva').then((mod) => mod.Image), {
+  ssr: false,
+})
 
 interface PuzzleBoardProps {
   puzzleId: string
@@ -65,7 +77,7 @@ function PuzzlePiece({
 }
 
 export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardProps) {
-  const stageRef = useRef<Konva.Stage>(null)
+  const stageRef = useRef<StageType>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
   const [puzzleState, setPuzzleState] = useState<PuzzleState>(() => {
     // Load saved state from localStorage
