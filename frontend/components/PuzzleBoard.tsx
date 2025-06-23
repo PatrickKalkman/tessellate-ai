@@ -1,66 +1,85 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { PuzzleManifest, PuzzleState } from '@/types/puzzle'
-import useImage from 'use-image'
 import type { Stage as StageType } from 'konva/lib/Stage'
 
-const Stage = dynamic(() => import('react-konva').then((mod) => mod.Stage), {
-  ssr: false,
-})
+const KonvaStage = dynamic(
+  async () => {
+    const { Stage, Layer, Image: KonvaImage } = await import('react-konva')
+    const useImage = (await import('use-image')).default
+    
+    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage }: any) {
+      return (
+        <Stage 
+          width={stageSize.width} 
+          height={stageSize.height}
+          ref={stageRef}
+          className="mt-20"
+        >
+          <Layer>
+            {/* Background image (faded) */}
+            {backgroundImage && (
+              <KonvaImage
+                image={backgroundImage}
+                x={(stageSize.width - manifest.size) / 2}
+                y={(stageSize.height - manifest.size) / 2}
+                width={manifest.size}
+                height={manifest.size}
+                opacity={0.2}
+              />
+            )}
 
-const Layer = dynamic(() => import('react-konva').then((mod) => mod.Layer), {
-  ssr: false,
-})
+            {/* Puzzle pieces */}
+            {manifest.pieces.map((piece: any) => {
+              const state = puzzleState.pieces[piece.id]
+              if (!state) return null
 
-const KonvaImage = dynamic(() => import('react-konva').then((mod) => mod.Image), {
-  ssr: false,
-})
+              return (
+                <PuzzlePiece
+                  key={piece.id}
+                  id={piece.id}
+                  puzzleId={puzzleId}
+                  piece={piece}
+                  state={state}
+                  manifest={manifest}
+                  stageSize={stageSize}
+                  onDragEnd={handlePieceDragEnd}
+                  KonvaImage={KonvaImage}
+                  useImage={useImage}
+                />
+              )
+            })}
+          </Layer>
+        </Stage>
+      )
+    }
+  },
+  { ssr: false }
+)
 
-interface PuzzleBoardProps {
-  puzzleId: string
-  manifest: PuzzleManifest
-  onBack: () => void
-}
-
-interface PuzzlePieceProps {
-  id: number
-  imageUrl: string
-  correctX: number
-  correctY: number
-  initialX: number
-  initialY: number
-  onDragEnd: (id: number, x: number, y: number) => void
-  isPlaced: boolean
-}
-
-function PuzzlePiece({ 
-  id, 
-  imageUrl, 
-  correctX, 
-  correctY, 
-  initialX, 
-  initialY, 
-  onDragEnd,
-  isPlaced 
-}: PuzzlePieceProps) {
+function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, onDragEnd, KonvaImage, useImage }: any) {
+  const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image] = useImage(imageUrl)
-  const [position, setPosition] = useState({ x: initialX, y: initialY })
+  const [position, setPosition] = useState({ x: state.currentX, y: state.currentY })
 
   useEffect(() => {
-    if (isPlaced) {
-      setPosition({ x: correctX, y: correctY })
+    if (state.isPlaced) {
+      setPosition({ 
+        x: piece.x + (stageSize.width - manifest.size) / 2, 
+        y: piece.y + (stageSize.height - manifest.size) / 2 
+      })
     }
-  }, [isPlaced, correctX, correctY])
+  }, [state.isPlaced, piece.x, piece.y, stageSize, manifest.size])
 
   return (
     <KonvaImage
       image={image}
       x={position.x}
       y={position.y}
-      draggable={!isPlaced}
-      onDragEnd={(e) => {
+      draggable={!state.isPlaced}
+      onDragEnd={(e: any) => {
         const node = e.target
         const x = node.x()
         const y = node.y()
@@ -68,22 +87,31 @@ function PuzzlePiece({
         onDragEnd(id, x, y)
       }}
       shadowColor="black"
-      shadowBlur={isPlaced ? 0 : 5}
-      shadowOffsetX={isPlaced ? 0 : 3}
-      shadowOffsetY={isPlaced ? 0 : 3}
-      shadowOpacity={isPlaced ? 0 : 0.3}
+      shadowBlur={state.isPlaced ? 0 : 5}
+      shadowOffsetX={state.isPlaced ? 0 : 3}
+      shadowOffsetY={state.isPlaced ? 0 : 3}
+      shadowOpacity={state.isPlaced ? 0 : 0.3}
     />
   )
+}
+
+interface PuzzleBoardProps {
+  puzzleId: string
+  manifest: PuzzleManifest
+  onBack: () => void
 }
 
 export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardProps) {
   const stageRef = useRef<StageType>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [puzzleState, setPuzzleState] = useState<PuzzleState>(() => {
     // Load saved state from localStorage
-    const savedState = localStorage.getItem(`puzzle-${puzzleId}`)
-    if (savedState) {
-      return JSON.parse(savedState)
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem(`puzzle-${puzzleId}`)
+      if (savedState) {
+        return JSON.parse(savedState)
+      }
     }
 
     // Initialize new state with random positions
@@ -99,8 +127,14 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     return { pieces }
   })
 
-  const [backgroundImage] = useImage(`/puzzles/${puzzleId}/original.jpg`)
   const [isCompleted, setIsCompleted] = useState(false)
+
+  // Load background image
+  useEffect(() => {
+    const img = new Image()
+    img.src = `/puzzles/${puzzleId}/original.jpg`
+    img.onload = () => setBackgroundImage(img)
+  }, [puzzleId])
 
   // Update stage size on mount and resize
   useEffect(() => {
@@ -117,7 +151,9 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem(`puzzle-${puzzleId}`, JSON.stringify(puzzleState))
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`puzzle-${puzzleId}`, JSON.stringify(puzzleState))
+    }
   }, [puzzleId, puzzleState])
 
   // Check if puzzle is completed
@@ -137,26 +173,24 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     if (!piece) return
 
     const snapDistance = 30 // pixels
+    const targetX = piece.x + (stageSize.width - manifest.size) / 2
+    const targetY = piece.y + (stageSize.height - manifest.size) / 2
+    
     const isSnapped = 
-      Math.abs(x - piece.x) < snapDistance && 
-      Math.abs(y - piece.y) < snapDistance
+      Math.abs(x - targetX) < snapDistance && 
+      Math.abs(y - targetY) < snapDistance
 
     setPuzzleState(prev => ({
       ...prev,
       pieces: {
         ...prev.pieces,
         [pieceId]: {
-          currentX: isSnapped ? piece.x : x,
-          currentY: isSnapped ? piece.y : y,
+          currentX: isSnapped ? targetX : x,
+          currentY: isSnapped ? targetY : y,
           isPlaced: isSnapped
         }
       }
     }))
-
-    // Play snap sound (if implemented)
-    if (isSnapped) {
-      // TODO: Add snap sound effect
-    }
   }
 
   const resetPuzzle = () => {
@@ -209,46 +243,21 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
       </div>
 
       {/* Puzzle Stage */}
-      <Stage 
-        width={stageSize.width} 
-        height={stageSize.height}
-        ref={stageRef}
-        className="mt-20"
-      >
-        <Layer>
-          {/* Background image (faded) */}
-          {backgroundImage && (
-            <KonvaImage
-              image={backgroundImage}
-              x={(stageSize.width - manifest.size) / 2}
-              y={(stageSize.height - manifest.size) / 2}
-              width={manifest.size}
-              height={manifest.size}
-              opacity={0.2}
-            />
-          )}
-
-          {/* Puzzle pieces */}
-          {manifest.pieces.map((piece) => {
-            const state = puzzleState.pieces[piece.id]
-            if (!state) return null
-
-            return (
-              <PuzzlePiece
-                key={piece.id}
-                id={piece.id}
-                imageUrl={`/puzzles/${puzzleId}/piece_${piece.id.toString().padStart(3, '0')}.png`}
-                correctX={piece.x + (stageSize.width - manifest.size) / 2}
-                correctY={piece.y + (stageSize.height - manifest.size) / 2}
-                initialX={state.currentX}
-                initialY={state.currentY}
-                onDragEnd={handlePieceDragEnd}
-                isPlaced={state.isPlaced}
-              />
-            )
-          })}
-        </Layer>
-      </Stage>
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-white text-xl">Loading puzzle...</div>
+        </div>
+      }>
+        <KonvaStage
+          puzzleId={puzzleId}
+          manifest={manifest}
+          puzzleState={puzzleState}
+          handlePieceDragEnd={handlePieceDragEnd}
+          stageSize={stageSize}
+          stageRef={stageRef}
+          backgroundImage={backgroundImage}
+        />
+      </Suspense>
 
       {/* Completion Modal */}
       {isCompleted && (
