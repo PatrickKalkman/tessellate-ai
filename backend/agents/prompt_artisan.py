@@ -148,20 +148,24 @@ class PromptArtisan:
         return random.choice(common_words)
 
     def create_image(
-        self, prompt: str, size: str = "1024x1024"
+        self, prompt: str, size: Optional[str] = None
     ) -> ImageGenerationResult:
         """
         Generate an image using DALL-E 3
 
         Args:
             prompt: The prompt to generate from
-            size: Image size (1024x1024, 1792x1024, or 1024x1792)
+            size: Image size (1792x1024, 1024x1024, or 1024x1792) - defaults to config.dalle_size
 
         Returns:
             ImageGenerationResult with image data
         """
         try:
-            logger.info("Generating image with DALL-E 3...")
+            # Use configured size if not specified
+            if size is None:
+                size = settings.dalle_size
+                
+            logger.info(f"Generating image with DALL-E 3 at size {size}...")
 
             response = self.client.images.generate(
                 model="dall-e-3", prompt=prompt, size=size, quality="hd", n=1

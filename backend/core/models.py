@@ -11,14 +11,16 @@ class PuzzlePiece(BaseModel):
 
 
 class PuzzleManifest(BaseModel):
-    size: int
+    width: int
+    height: int
     grid: Tuple[int, int]
     pieces: List[PuzzlePiece]
     
     def to_json_dict(self) -> dict:
         """Convert to JSON-serializable dictionary"""
         return {
-            "size": self.size,
+            "width": self.width,
+            "height": self.height,
             "grid": list(self.grid),
             "pieces": [piece.model_dump() for piece in self.pieces]
         }

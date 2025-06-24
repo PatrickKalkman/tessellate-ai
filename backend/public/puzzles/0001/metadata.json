@@ -1,0 +1,14 @@
+{
+  "puzzle_id": "0001",
+  "prompt": "Ultra-realistic photograph, northern lights over snowy mountains, varied textures, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "complexity": 0.5,
+  "style": "classic",
+  "quality_metrics": {
+    "edge_density": 4.185976300920759,
+    "color_entropy": 2.5490870475769043,
+    "local_contrast": 93.75932827903819,
+    "overall_score": 42.993362216040175
+  },
+  "timestamp": "2025-06-23T19:00:13.076945",
+  "total_pieces": 112
+}

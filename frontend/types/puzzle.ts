@@ -5,7 +5,9 @@ export interface PuzzlePiece {
 }
 
 export interface PuzzleManifest {
-  size: number
+  size?: number
+  width: number
+  height: number
   grid: [number, number]
   pieces: PuzzlePiece[]
 }

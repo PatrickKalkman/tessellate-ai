@@ -10,7 +10,13 @@
       "Bash(git reset:*)",
       "Bash(npm run build:*)",
       "Bash(find:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(pip uninstall:*)",
+      "Bash(rm:*)",
+      "Bash(rg:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }

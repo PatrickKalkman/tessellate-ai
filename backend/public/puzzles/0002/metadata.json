@@ -1,0 +1,14 @@
+{
+  "puzzle_id": "0002",
+  "prompt": "Ultra-realistic photograph, autumn forest path with fallen leaves, multiple subjects, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "complexity": 0.5,
+  "style": "classic",
+  "quality_metrics": {
+    "edge_density": 8.688681466238839,
+    "color_entropy": 2.7359843254089355,
+    "local_contrast": 100.0,
+    "overall_score": 47.18254934038435
+  },
+  "timestamp": "2025-06-23T19:00:47.610271",
+  "total_pieces": 112
+}

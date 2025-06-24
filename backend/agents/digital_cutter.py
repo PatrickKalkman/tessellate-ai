@@ -6,6 +6,27 @@ import numpy as np
 from PIL import Image, ImageDraw
 import svgwrite
 import json
+import tempfile
+import os
+import shutil
+import subprocess
+from io import BytesIO
+
+# Try to import cairosvg, fall back to wand if not available
+HAS_CAIRO = False
+HAS_WAND = False
+try:
+    import cairosvg
+    HAS_CAIRO = True
+except ImportError:
+    pass
+
+if not HAS_CAIRO:
+    try:
+        from wand.image import Image as WandImage
+        HAS_WAND = True
+    except ImportError:
+        pass
 
 from ..core.models import PuzzlePiece, PuzzleManifest, CuttingStyle
 from ..core.config import settings
@@ -13,6 +34,7 @@ from ..core.utils import (
     ensure_directory, save_json, load_image, save_image,
     calculate_piece_position, format_puzzle_id
 )
+from .pyjig_adapter import Cut, Jigsaw
 
 
 logger = logging.getLogger(__name__)
@@ -24,7 +46,8 @@ class DigitalCutter:
     def __init__(self, grid_size: Optional[Tuple[int, int]] = None):
         self.rows, self.cols = grid_size or settings.grid_size
         self.piece_size = settings.piece_size
-        self.image_size = settings.image_size
+        self.image_width = settings.image_width
+        self.image_height = settings.image_height
         
         # Tab/blank parameters for classic jigsaw pieces
         self.tab_size = self.piece_size // 4  # Size of tabs/blanks
@@ -50,10 +73,124 @@ class DigitalCutter:
         
         # Load and validate image
         image = load_image(image_path)
-        if image.size != (self.image_size, self.image_size):
-            logger.warning(f"Resizing image from {image.size} to ({self.image_size}, {self.image_size})")
-            image = image.resize((self.image_size, self.image_size), Image.Resampling.LANCZOS)
+        if image.size != (self.image_width, self.image_height):
+            logger.warning(f"Resizing image from {image.size} to ({self.image_width}, {self.image_height})")
+            image = image.resize((self.image_width, self.image_height), Image.Resampling.LANCZOS)
         
+        # Save resized image temporarily for PyJig
+        temp_image = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        image.save(temp_image.name)
+        temp_image.close()
+        
+        # Create temporary directory for SVG pieces
+        temp_svg_dir = tempfile.mkdtemp()
+        
+        try:
+            if style == CuttingStyle.CLASSIC:
+                # Use PyJig for classic jigsaw pieces
+                pieces = self._cut_with_pyjig(temp_image.name, temp_svg_dir, output_path, image)
+            else:
+                # Fall back to original implementation for other styles
+                pieces = self._cut_with_custom_algorithm(image, output_path, style)
+            
+            # Create manifest
+            manifest = PuzzleManifest(
+                width=self.image_width,
+                height=self.image_height,
+                grid=(self.rows, self.cols),
+                pieces=pieces
+            )
+            
+            # Save manifest
+            manifest_path = output_path / "manifest.json"
+            save_json(manifest.to_json_dict(), manifest_path)
+            
+            logger.info(f"Successfully cut {len(pieces)} puzzle pieces")
+            return manifest
+        finally:
+            # Clean up temporary files
+            os.unlink(temp_image.name)
+            shutil.rmtree(temp_svg_dir)
+    
+    def _cut_with_pyjig(self, image_path: str, svg_dir: str, output_path: Path, 
+                       source_image: Image.Image) -> List[PuzzlePiece]:
+        """
+        Cut puzzle using PyJig algorithm.
+        
+        Args:
+            image_path: Path to the source image
+            svg_dir: Directory to save temporary SVG files
+            output_path: Directory to save final PNG pieces
+            source_image: The already loaded and resized PIL Image
+            
+        Returns:
+            List of PuzzlePiece objects
+        """
+        # Create Cut object
+        cut = Cut(
+            pieces_height=self.rows,
+            pieces_width=self.cols,
+            image=image_path,
+            use_image=True
+        )
+        
+        # Create Jigsaw object and generate SVG pieces
+        jigsaw = Jigsaw(cut, image_path)
+        jigsaw.generate_svg_jigsaw(svg_dir)
+        
+        # Convert SVG pieces to PNG
+        pieces = []
+        piece_index = 0
+        
+        for row in range(self.rows):
+            for col in range(self.cols):
+                svg_path = os.path.join(svg_dir, f"{piece_index}.svg")
+                
+                # Convert SVG to PNG
+                try:
+                    piece_image = self._svg_to_png(
+                        svg_path,
+                        self.piece_size + 2 * self.tab_size,
+                        self.piece_size + 2 * self.tab_size
+                    )
+                    if piece_image is None:
+                        raise ValueError("No SVG converter available")
+                except Exception as e:
+                    if piece_index == 0:  # Only log once to avoid spam
+                        logger.warning(f"SVG to PNG conversion not available. Using fallback method for all pieces.")
+                    # Create a simple piece image as fallback
+                    piece_image = self._create_fallback_piece(row, col, source_image)
+                
+                # Ensure RGBA mode
+                if piece_image.mode != 'RGBA':
+                    piece_image = piece_image.convert('RGBA')
+                
+                # Save piece
+                piece_filename = f"piece_{piece_index:03d}.png"
+                piece_path = output_path / piece_filename
+                save_image(piece_image, piece_path)
+                
+                # Calculate piece position in original image
+                x, y = calculate_piece_position(piece_index, self.cols, self.piece_size)
+                
+                pieces.append(PuzzlePiece(id=piece_index, x=x, y=y))
+                piece_index += 1
+        
+        return pieces
+    
+    def _cut_with_custom_algorithm(self, image: Image.Image, output_path: Path, 
+                                  style: CuttingStyle) -> List[PuzzlePiece]:
+        """
+        Cut puzzle using original custom algorithm (for non-classic styles).
+        
+        Args:
+            image: PIL Image object
+            output_path: Directory to save pieces
+            style: Cutting style
+            
+        Returns:
+            List of PuzzlePiece objects
+        """
         # Convert to RGBA for transparency support
         if image.mode != 'RGBA':
             image = image.convert('RGBA')
@@ -84,19 +221,7 @@ class DigitalCutter:
                 pieces.append(PuzzlePiece(id=piece_index, x=x, y=y))
                 piece_index += 1
         
-        # Create manifest
-        manifest = PuzzleManifest(
-            size=self.image_size,
-            grid=(self.rows, self.cols),
-            pieces=pieces
-        )
-        
-        # Save manifest
-        manifest_path = output_path / "manifest.json"
-        save_json(manifest.to_json_dict(), manifest_path)
-        
-        logger.info(f"Successfully cut {len(pieces)} puzzle pieces")
-        return manifest
+        return pieces
     
     def _generate_edge_patterns(self) -> dict:
         """
@@ -401,5 +526,94 @@ class DigitalCutter:
         paste_x = self.tab_size if x_start >= 0 else 0
         paste_y = self.tab_size if y_start >= 0 else 0
         piece.paste(piece_with_mask, (paste_x, paste_y), piece_with_mask)
+        
+        return piece
+    
+    def _svg_to_png(self, svg_path: str, width: int, height: int) -> Image.Image:
+        """
+        Convert SVG to PNG using available library.
+        
+        Args:
+            svg_path: Path to SVG file
+            width: Output width
+            height: Output height
+            
+        Returns:
+            PIL Image object
+        """
+        if HAS_CAIRO:
+            # Use cairosvg
+            png_data = cairosvg.svg2png(
+                url=svg_path,
+                output_width=width,
+                output_height=height
+            )
+            return Image.open(BytesIO(png_data))
+        elif HAS_WAND:
+            # Use Wand (ImageMagick)
+            with WandImage(filename=svg_path) as img:
+                img.resize(width, height)
+                png_blob = img.make_blob('png')
+                return Image.open(BytesIO(png_blob))
+        else:
+            # Fall back to using inkscape command line if available
+            try:
+                import subprocess
+                temp_png = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                subprocess.run([
+                    "inkscape", svg_path,
+                    f"--export-width={width}",
+                    f"--export-height={height}",
+                    f"--export-filename={temp_png.name}"
+                ], check=True, capture_output=True)
+                image = Image.open(temp_png.name)
+                # Make a copy since we'll delete the temp file
+                image_copy = image.copy()
+                image.close()
+                os.unlink(temp_png.name)
+                return image_copy
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                # If all else fails, return None to trigger the use of the fallback method
+                return None
+    
+    def _create_fallback_piece(self, row: int, col: int, source_image: Image.Image) -> Image.Image:
+        """
+        Create a simple fallback piece when SVG conversion fails.
+        
+        Args:
+            row: Row index
+            col: Column index
+            source_image: Source image to extract piece from
+            
+        Returns:
+            PIL Image of the piece
+        """
+        # Ensure source image is RGBA
+        if source_image.mode != 'RGBA':
+            source_image = source_image.convert('RGBA')
+            
+        # Calculate piece boundaries
+        x_start = col * self.piece_size
+        y_start = row * self.piece_size
+        x_end = min(x_start + self.piece_size, source_image.width)
+        y_end = min(y_start + self.piece_size, source_image.height)
+        
+        # Extract the piece region from the source image
+        piece_region = source_image.crop((x_start, y_start, x_end, y_end))
+        
+        # Create a piece with some padding for "tabs"
+        piece_size_with_tabs = self.piece_size + 2 * self.tab_size
+        piece = Image.new('RGBA', (piece_size_with_tabs, piece_size_with_tabs), (0, 0, 0, 0))
+        
+        # Calculate the actual size of the cropped region (might be smaller at edges)
+        actual_width = x_end - x_start
+        actual_height = y_end - y_start
+        
+        # Create a temporary piece that's the right size
+        temp_piece = Image.new('RGBA', (self.piece_size, self.piece_size), (0, 0, 0, 0))
+        temp_piece.paste(piece_region, (0, 0))
+        
+        # Paste the piece in the center of the larger canvas
+        piece.paste(temp_piece, (self.tab_size, self.tab_size))
         
         return piece
