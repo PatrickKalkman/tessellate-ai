@@ -37,7 +37,6 @@ from ..core.utils import (
     save_image,
     save_json,
 )
-from .pyjig_adapter import Cut, Jigsaw
 
 logger = logging.getLogger(__name__)
 
@@ -91,23 +90,18 @@ class DigitalCutter:
                 (self.image_width, self.image_height), Image.Resampling.LANCZOS
             )
 
-        # Save resized image temporarily for PyJig
+        # Save resized image temporarily for the cutting algorithm
         temp_image = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         image.save(temp_image.name)
         temp_image.close()
-
-        # Create temporary directory for SVG pieces
-        temp_svg_dir = tempfile.mkdtemp()
 
         try:
             if style == CuttingStyle.RECTANGULAR:
                 # Simple rectangular pieces
                 pieces = self._cut_rectangular_pieces(image, output_path)
             elif style == CuttingStyle.CLASSIC:
-                # Use PyJig for classic jigsaw pieces
-                pieces = self._cut_with_pyjig(
-                    temp_image.name, temp_svg_dir, output_path, image
-                )
+                # Use the internal algorithm for classic style
+                pieces = self._cut_with_custom_algorithm(image, output_path, style)
             else:
                 # Fall back to original implementation for other styles
                 pieces = self._cut_with_custom_algorithm(image, output_path, style)
@@ -127,9 +121,8 @@ class DigitalCutter:
             logger.info(f"Successfully cut {len(pieces)} puzzle pieces")
             return manifest
         finally:
-            # Clean up temporary files
+            # Clean up temporary file
             os.unlink(temp_image.name)
-            shutil.rmtree(temp_svg_dir)
 
     def _cut_rectangular_pieces(
         self, image: Image.Image, output_path: Path
@@ -173,78 +166,6 @@ class DigitalCutter:
 
         return pieces
 
-    def _cut_with_pyjig(
-        self,
-        image_path: str,
-        svg_dir: str,
-        output_path: Path,
-        source_image: Image.Image,
-    ) -> List[PuzzlePiece]:
-        """
-        Cut puzzle using PyJig algorithm.
-
-        Args:
-            image_path: Path to the source image
-            svg_dir: Directory to save temporary SVG files
-            output_path: Directory to save final PNG pieces
-            source_image: The already loaded and resized PIL Image
-
-        Returns:
-            List of PuzzlePiece objects
-        """
-        # Create Cut object
-        cut = Cut(
-            pieces_height=self.rows,
-            pieces_width=self.cols,
-            image=image_path,
-            use_image=True,
-        )
-
-        # Create Jigsaw object and generate SVG pieces
-        jigsaw = Jigsaw(cut, image_path)
-        jigsaw.generate_svg_jigsaw(svg_dir)
-
-        # Convert SVG pieces to PNG
-        pieces = []
-        piece_index = 0
-
-        for row in range(self.rows):
-            for col in range(self.cols):
-                svg_path = os.path.join(svg_dir, f"{piece_index}.svg")
-
-                # Convert SVG to PNG
-                try:
-                    piece_image = self._svg_to_png(
-                        svg_path,
-                        self.piece_size + 2 * self.tab_size,
-                        self.piece_size + 2 * self.tab_size,
-                    )
-                    if piece_image is None:
-                        raise ValueError("No SVG converter available")
-                except Exception:
-                    if piece_index == 0:  # Only log once to avoid spam
-                        logger.warning(
-                            "SVG to PNG conversion not available. Using fallback method for all pieces."
-                        )
-                    # Create a simple piece image as fallback
-                    piece_image = self._create_fallback_piece(row, col, source_image)
-
-                # Ensure RGBA mode
-                if piece_image.mode != "RGBA":
-                    piece_image = piece_image.convert("RGBA")
-
-                # Save piece
-                piece_filename = f"piece_{piece_index:03d}.png"
-                piece_path = output_path / piece_filename
-                save_image(piece_image, piece_path)
-
-                # Calculate piece position in original image
-                x, y = calculate_piece_position(piece_index, self.cols, self.piece_size)
-
-                pieces.append(PuzzlePiece(id=piece_index, x=x, y=y))
-                piece_index += 1
-
-        return pieces
 
     def _cut_with_custom_algorithm(
         self, image: Image.Image, output_path: Path, style: CuttingStyle
