@@ -13,9 +13,9 @@ class Settings(BaseSettings):
     image_width: int = Field(1792, env="IMAGE_WIDTH")
     image_height: int = Field(1024, env="IMAGE_HEIGHT")
     dalle_size: str = Field("1792x1024", env="DALLE_SIZE")  # DALL-E 3 image size
-    grid_rows: int = Field(8, env="GRID_ROWS")  # Reduced for 16:9 aspect ratio
-    grid_cols: int = Field(14, env="GRID_COLS")  # Adjusted for 16:9 aspect ratio
-    piece_size: int = Field(128, env="PIECE_SIZE")
+    grid_rows: int = Field(5, env="GRID_ROWS")  # Number of rows
+    grid_cols: int = Field(9, env="GRID_COLS")  # Number of columns
+    piece_size: int = Field(192, env="PIECE_SIZE")  # Legacy - will be calculated dynamically
 
     # Quality Settings
     quality_threshold: float = Field(30.0, env="QUALITY_THRESHOLD")
@@ -43,6 +43,16 @@ class Settings(BaseSettings):
     def image_size(self) -> Tuple[int, int]:
         """Return image dimensions as a tuple (width, height)"""
         return (self.image_width, self.image_height)
+    
+    @property
+    def piece_width(self) -> int:
+        """Calculate exact piece width based on image width and columns"""
+        return self.image_width // self.grid_cols
+    
+    @property
+    def piece_height(self) -> int:
+        """Calculate exact piece height based on image height and rows"""
+        return self.image_height // self.grid_rows
 
     class Config:
         env_file = ".env"

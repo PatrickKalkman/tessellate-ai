@@ -1,14 +1,14 @@
 {
   "puzzle_id": "0003",
-  "prompt": "Ultra-realistic photograph, field of wildflowers at golden hour, varied textures, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "prompt": "Ultra-realistic photograph, underwater shipwreck with marine life, multiple subjects, varied textures, dramatic lighting, professional lighting, 8K resolution, sharp focus",
   "complexity": 0.5,
-  "style": "classic",
+  "style": "rectangular",
   "quality_metrics": {
-    "edge_density": 5.117906842912946,
-    "color_entropy": 2.3898494243621826,
+    "edge_density": 9.820938110351562,
+    "color_entropy": 2.5735417008399963,
     "local_contrast": 100.0,
-    "overall_score": 44.89984539576939
+    "overall_score": 46.953677386045456
   },
-  "timestamp": "2025-06-23T19:01:21.406939",
+  "timestamp": "2025-06-24T14:04:21.106530",
   "total_pieces": 112
 }

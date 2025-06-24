@@ -29,6 +29,7 @@ class PromptArtisan:
         self.client = openai_client or OpenAI(api_key=settings.openai_api_key)
         self.history_file = Path("prompt_history.json")
         self.prompt_history: List[PromptHistory] = self._load_history()
+        self.last_generated_prompts = []  # Track last few prompts in memory
 
         # Base themes for puzzle generation
         self.base_themes = [
@@ -42,6 +43,35 @@ class PromptArtisan:
             "bustling farmer's market with colorful produce",
             "hot air balloons over countryside",
             "field of wildflowers at golden hour",
+            "Japanese zen garden with koi pond",
+            "Victorian greenhouse with exotic plants",
+            "Mediterranean coastal village at sunset",
+            "African savanna with acacia trees",
+            "colorful macaw parrots in jungle",
+            "vintage train station in autumn",
+            "lighthouse on rocky coastline during storm",
+            "cherry blossoms in full bloom",
+            "Venetian canal with gondolas",
+            "desert canyon with layered rock formations",
+            "butterfly garden with diverse species",
+            "snowy owl in winter forest",
+            "tide pools with starfish and anemones",
+            "terraced rice fields at sunrise",
+            "street art mural with vibrant colors",
+        ]
+        
+        # Additional variation elements
+        self.variation_elements = [
+            "dramatic lighting",
+            "morning mist",
+            "golden sunbeams",
+            "reflections in water",
+            "interesting shadows",
+            "natural patterns",
+            "organic shapes",
+            "flowing water",
+            "dappled sunlight",
+            "atmospheric perspective",
         ]
 
         # Complexity modifiers that affect puzzle difficulty
@@ -92,8 +122,19 @@ class PromptArtisan:
         Returns:
             Generated prompt string
         """
-        # Select random base theme
-        theme = random.choice(self.base_themes)
+        # Get recent prompts to avoid duplicates
+        recent_prompts = self._get_recent_prompts(hours=24)
+        recent_themes = [self._extract_theme(p) for p in recent_prompts]
+        
+        # Select a theme that hasn't been used recently
+        available_themes = [t for t in self.base_themes if t not in recent_themes]
+        if not available_themes:
+            # If all themes used recently, use all themes but prefer less used ones
+            theme_counts = {theme: recent_themes.count(theme) for theme in self.base_themes}
+            least_used = min(theme_counts.values())
+            available_themes = [t for t, count in theme_counts.items() if count == least_used]
+        
+        theme = random.choice(available_themes)
 
         # Determine complexity modifiers based on level
         modifiers = []
@@ -104,11 +145,15 @@ class PromptArtisan:
         else:
             modifiers = random.sample(self.complexity_modifiers["high"], 3)
 
+        # Add random variation element
+        variation = random.choice(self.variation_elements)
+        
         # Build the prompt
         prompt_parts = [
             "Ultra-realistic photograph",
             theme,
             *modifiers,
+            variation,
             "professional lighting",
             "8K resolution",
             "sharp focus",
@@ -129,6 +174,17 @@ class PromptArtisan:
                 if learned_modifier:
                     prompt += f", {learned_modifier}"
 
+        # Check if this exact prompt was recently generated
+        if prompt in self.last_generated_prompts:
+            # Add more variation to make it unique
+            extra_variations = ["subtle details", "high contrast", "soft focus background", "macro details"]
+            prompt += f", {random.choice(extra_variations)}"
+        
+        # Track this prompt
+        self.last_generated_prompts.append(prompt)
+        if len(self.last_generated_prompts) > 10:
+            self.last_generated_prompts.pop(0)
+
         logger.info(
             f"Generated prompt with complexity {complexity_level}: {prompt[:100]}..."
         )
@@ -146,6 +202,36 @@ class PromptArtisan:
             "detailed foreground",
         ]
         return random.choice(common_words)
+    
+    def _get_recent_prompts(self, hours: int = 24) -> List[str]:
+        """Get prompts generated in the last N hours"""
+        from datetime import datetime, timedelta
+        
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        recent = []
+        
+        for entry in self.prompt_history:
+            # Parse timestamp if it's a string
+            if isinstance(entry.timestamp, str):
+                timestamp = datetime.fromisoformat(entry.timestamp)
+            else:
+                timestamp = entry.timestamp
+                
+            if timestamp > cutoff_time:
+                recent.append(entry.prompt)
+                
+        return recent
+    
+    def _extract_theme(self, prompt: str) -> Optional[str]:
+        """Extract the base theme from a generated prompt"""
+        # Look for themes in the prompt
+        prompt_lower = prompt.lower()
+        
+        for theme in self.base_themes:
+            if theme.lower() in prompt_lower:
+                return theme
+                
+        return None
 
     def create_image(
         self, prompt: str, size: Optional[str] = None

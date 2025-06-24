@@ -95,7 +95,7 @@ npm test
 
 ## Key Design Decisions
 
-1. **256-piece puzzles only** in v1 (16x16 grid)
+1. **45-piece puzzles** in v1 (5x9 grid with 192px pieces)
 2. **No piece rotation** - pieces are always upright
 3. **Static site architecture** - all assets pre-generated
 4. **Lazy loading** - pieces fetched on demand

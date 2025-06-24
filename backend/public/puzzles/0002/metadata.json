@@ -1,14 +1,14 @@
 {
   "puzzle_id": "0002",
-  "prompt": "Ultra-realistic photograph, autumn forest path with fallen leaves, multiple subjects, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "prompt": "Ultra-realistic photograph, Mediterranean coastal village at sunset, varied textures, multiple subjects, dramatic lighting, professional lighting, 8K resolution, sharp focus",
   "complexity": 0.5,
-  "style": "classic",
+  "style": "rectangular",
   "quality_metrics": {
-    "edge_density": 8.688681466238839,
-    "color_entropy": 2.7359843254089355,
+    "edge_density": 6.793757847377233,
+    "color_entropy": 2.6019524335861206,
     "local_contrast": 100.0,
-    "overall_score": 47.18254934038435
+    "overall_score": 46.144960871764596
   },
-  "timestamp": "2025-06-23T19:00:47.610271",
+  "timestamp": "2025-06-24T14:03:56.772329",
   "total_pieces": 112
 }

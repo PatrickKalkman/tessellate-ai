@@ -63,6 +63,7 @@ class PuzzleGenerationResult(BaseModel):
 
 
 class CuttingStyle(str, Enum):
+    RECTANGULAR = "rectangular"  # Simple rectangular pieces (no curves)
     CLASSIC = "classic"
     GEOMETRIC = "geometric"
     ORGANIC = "organic"

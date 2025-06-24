@@ -1,14 +1,14 @@
 {
   "puzzle_id": "0001",
-  "prompt": "Ultra-realistic photograph, northern lights over snowy mountains, varied textures, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "prompt": "Ultra-realistic photograph, African savanna with acacia trees, multiple subjects, balanced composition, interesting shadows, professional lighting, 8K resolution, sharp focus",
   "complexity": 0.5,
-  "style": "classic",
+  "style": "rectangular",
   "quality_metrics": {
-    "edge_density": 4.185976300920759,
-    "color_entropy": 2.5490870475769043,
-    "local_contrast": 93.75932827903819,
-    "overall_score": 42.993362216040175
+    "edge_density": 8.533804757254464,
+    "color_entropy": 2.892446458339691,
+    "local_contrast": 100.0,
+    "overall_score": 47.68370403136526
   },
-  "timestamp": "2025-06-23T19:00:13.076945",
+  "timestamp": "2025-06-24T14:03:31.169812",
   "total_pieces": 112
 }

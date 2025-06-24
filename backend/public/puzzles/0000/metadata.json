@@ -1,14 +1,14 @@
 {
   "puzzle_id": "0000",
-  "prompt": "Ultra-realistic photograph, field of wildflowers at golden hour, multiple subjects, balanced composition, professional lighting, 8K resolution, sharp focus",
+  "prompt": "Ultra-realistic photograph, butterfly garden with diverse species, multiple subjects, varied textures, golden sunbeams, professional lighting, 8K resolution, sharp focus",
   "complexity": 0.5,
-  "style": "classic",
+  "style": "rectangular",
   "quality_metrics": {
-    "edge_density": 8.779362269810267,
-    "color_entropy": 2.709038496017456,
+    "edge_density": 11.489541190011161,
+    "color_entropy": 2.7348889112472534,
     "local_contrast": 100.0,
-    "overall_score": 47.115442820957725
+    "overall_score": 48.018973546368734
   },
-  "timestamp": "2025-06-23T18:59:13.584080",
+  "timestamp": "2025-06-24T14:03:04.566372",
   "total_pieces": 112
 }

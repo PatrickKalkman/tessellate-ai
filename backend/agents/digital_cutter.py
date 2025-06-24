@@ -45,9 +45,13 @@ class DigitalCutter:
     
     def __init__(self, grid_size: Optional[Tuple[int, int]] = None):
         self.rows, self.cols = grid_size or settings.grid_size
-        self.piece_size = settings.piece_size
+        self.piece_size = settings.piece_size  # Legacy
         self.image_width = settings.image_width
         self.image_height = settings.image_height
+        
+        # Calculate exact piece dimensions
+        self.piece_width = settings.piece_width
+        self.piece_height = settings.piece_height
         
         # Tab/blank parameters for classic jigsaw pieces
         self.tab_size = self.piece_size // 4  # Size of tabs/blanks
@@ -86,7 +90,10 @@ class DigitalCutter:
         temp_svg_dir = tempfile.mkdtemp()
         
         try:
-            if style == CuttingStyle.CLASSIC:
+            if style == CuttingStyle.RECTANGULAR:
+                # Simple rectangular pieces
+                pieces = self._cut_rectangular_pieces(image, output_path)
+            elif style == CuttingStyle.CLASSIC:
                 # Use PyJig for classic jigsaw pieces
                 pieces = self._cut_with_pyjig(temp_image.name, temp_svg_dir, output_path, image)
             else:
@@ -111,6 +118,46 @@ class DigitalCutter:
             # Clean up temporary files
             os.unlink(temp_image.name)
             shutil.rmtree(temp_svg_dir)
+    
+    def _cut_rectangular_pieces(self, image: Image.Image, output_path: Path) -> List[PuzzlePiece]:
+        """
+        Cut image into simple rectangular pieces.
+        
+        Args:
+            image: PIL Image object
+            output_path: Directory to save pieces
+            
+        Returns:
+            List of PuzzlePiece objects
+        """
+        # Convert to RGBA for transparency support
+        if image.mode != 'RGBA':
+            image = image.convert('RGBA')
+        
+        pieces = []
+        piece_index = 0
+        
+        for row in range(self.rows):
+            for col in range(self.cols):
+                # Calculate exact boundaries
+                x_start = col * self.piece_width
+                y_start = row * self.piece_height
+                x_end = min(x_start + self.piece_width, self.image_width)
+                y_end = min(y_start + self.piece_height, self.image_height)
+                
+                # Extract piece
+                piece_image = image.crop((x_start, y_start, x_end, y_end))
+                
+                # Save piece
+                piece_filename = f"piece_{piece_index:03d}.png"
+                piece_path = output_path / piece_filename
+                save_image(piece_image, piece_path)
+                
+                # Create piece info (position in pixels)
+                pieces.append(PuzzlePiece(id=piece_index, x=x_start, y=y_start))
+                piece_index += 1
+        
+        return pieces
     
     def _cut_with_pyjig(self, image_path: str, svg_dir: str, output_path: Path, 
                        source_image: Image.Image) -> List[PuzzlePiece]:

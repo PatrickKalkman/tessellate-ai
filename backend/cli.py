@@ -273,8 +273,8 @@ class PuzzleGenerator:
 @click.option('--output', '-o', default='public/puzzles', help='Output directory')
 @click.option('--complexity', '-x', default=0.5, type=float, help='Complexity level (0-1)')
 @click.option('--style', '-s', 
-              type=click.Choice(['classic', 'geometric', 'organic']), 
-              default='classic',
+              type=click.Choice(['rectangular', 'classic', 'geometric', 'organic']), 
+              default='rectangular',
               help='Cutting style for pieces')
 @click.option('--debug', is_flag=True, help='Enable debug logging')
 def main(count, output, complexity, style, debug):
