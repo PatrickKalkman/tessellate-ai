@@ -205,6 +205,9 @@ public/puzzles/*
 backend/public/puzzles/*
 !backend/public/puzzles/.gitkeep
 
+# Frontend public folder
+frontend/public/
+
 # Temporary files
 *.tmp
 *.temp
