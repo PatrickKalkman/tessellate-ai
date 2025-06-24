@@ -59,7 +59,7 @@ class PromptArtisan:
             "terraced rice fields at sunrise",
             "street art mural with vibrant colors",
         ]
-        
+
         # Additional variation elements
         self.variation_elements = [
             "dramatic lighting",
@@ -125,15 +125,19 @@ class PromptArtisan:
         # Get recent prompts to avoid duplicates
         recent_prompts = self._get_recent_prompts(hours=24)
         recent_themes = [self._extract_theme(p) for p in recent_prompts]
-        
+
         # Select a theme that hasn't been used recently
         available_themes = [t for t in self.base_themes if t not in recent_themes]
         if not available_themes:
             # If all themes used recently, use all themes but prefer less used ones
-            theme_counts = {theme: recent_themes.count(theme) for theme in self.base_themes}
+            theme_counts = {
+                theme: recent_themes.count(theme) for theme in self.base_themes
+            }
             least_used = min(theme_counts.values())
-            available_themes = [t for t, count in theme_counts.items() if count == least_used]
-        
+            available_themes = [
+                t for t, count in theme_counts.items() if count == least_used
+            ]
+
         theme = random.choice(available_themes)
 
         # Determine complexity modifiers based on level
@@ -147,7 +151,7 @@ class PromptArtisan:
 
         # Add random variation element
         variation = random.choice(self.variation_elements)
-        
+
         # Build the prompt
         prompt_parts = [
             "Ultra-realistic photograph",
@@ -177,9 +181,14 @@ class PromptArtisan:
         # Check if this exact prompt was recently generated
         if prompt in self.last_generated_prompts:
             # Add more variation to make it unique
-            extra_variations = ["subtle details", "high contrast", "soft focus background", "macro details"]
+            extra_variations = [
+                "subtle details",
+                "high contrast",
+                "soft focus background",
+                "macro details",
+            ]
             prompt += f", {random.choice(extra_variations)}"
-        
+
         # Track this prompt
         self.last_generated_prompts.append(prompt)
         if len(self.last_generated_prompts) > 10:
@@ -202,35 +211,35 @@ class PromptArtisan:
             "detailed foreground",
         ]
         return random.choice(common_words)
-    
+
     def _get_recent_prompts(self, hours: int = 24) -> List[str]:
         """Get prompts generated in the last N hours"""
         from datetime import datetime, timedelta
-        
+
         cutoff_time = datetime.now() - timedelta(hours=hours)
         recent = []
-        
+
         for entry in self.prompt_history:
             # Parse timestamp if it's a string
             if isinstance(entry.timestamp, str):
                 timestamp = datetime.fromisoformat(entry.timestamp)
             else:
                 timestamp = entry.timestamp
-                
+
             if timestamp > cutoff_time:
                 recent.append(entry.prompt)
-                
+
         return recent
-    
+
     def _extract_theme(self, prompt: str) -> Optional[str]:
         """Extract the base theme from a generated prompt"""
         # Look for themes in the prompt
         prompt_lower = prompt.lower()
-        
+
         for theme in self.base_themes:
             if theme.lower() in prompt_lower:
                 return theme
-                
+
         return None
 
     def create_image(
@@ -250,7 +259,7 @@ class PromptArtisan:
             # Use configured size if not specified
             if size is None:
                 size = settings.dalle_size
-                
+
             logger.info(f"Generating image with DALL-E 3 at size {size}...")
 
             response = self.client.images.generate(

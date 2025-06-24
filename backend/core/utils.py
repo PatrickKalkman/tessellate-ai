@@ -91,13 +91,17 @@ def calculate_piece_position(
     return x, y
 
 
-def validate_image_size(image: Image.Image, expected_width: int, expected_height: int) -> bool:
+def validate_image_size(
+    image: Image.Image, expected_width: int, expected_height: int
+) -> bool:
     """Validate that image matches expected dimensions"""
     width, height = image.size
     return width == expected_width and height == expected_height
 
 
-def resize_image_if_needed(image: Image.Image, target_width: int, target_height: int) -> Image.Image:
+def resize_image_if_needed(
+    image: Image.Image, target_width: int, target_height: int
+) -> Image.Image:
     """Resize image to target dimensions if needed"""
     if image.size != (target_width, target_height):
         return image.resize((target_width, target_height), Image.Resampling.LANCZOS)

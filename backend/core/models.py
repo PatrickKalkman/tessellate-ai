@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Tuple, Optional
 from datetime import datetime
 from enum import Enum
+from typing import List, Optional, Tuple
+
+from pydantic import BaseModel, Field
 
 
 class PuzzlePiece(BaseModel):
@@ -15,14 +16,14 @@ class PuzzleManifest(BaseModel):
     height: int
     grid: Tuple[int, int]
     pieces: List[PuzzlePiece]
-    
+
     def to_json_dict(self) -> dict:
         """Convert to JSON-serializable dictionary"""
         return {
             "width": self.width,
             "height": self.height,
             "grid": list(self.grid),
-            "pieces": [piece.model_dump() for piece in self.pieces]
+            "pieces": [piece.model_dump() for piece in self.pieces],
         }
 
 
@@ -31,7 +32,7 @@ class QualityMetrics(BaseModel):
     color_entropy: float = Field(..., ge=0, le=10)
     local_contrast: float = Field(..., ge=0, le=100)
     overall_score: float = Field(..., ge=0, le=100)
-    
+
     def passes_threshold(self, threshold: float) -> bool:
         return self.overall_score >= threshold
 
