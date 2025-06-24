@@ -27,5 +27,8 @@
     "react-konva": "^18.2.10",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3"
+  },
+  "optionalDependencies": {
+    "canvas": "^2.11.2"
   }
 }

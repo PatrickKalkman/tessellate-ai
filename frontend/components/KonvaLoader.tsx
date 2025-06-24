@@ -2,32 +2,35 @@
 
 import { useEffect, useState } from 'react'
 
-export function useImage(url: string): [HTMLImageElement | undefined, 'loaded' | 'loading' | 'failed'] {
-  const [image, setImage] = useState<HTMLImageElement | undefined>()
-  const [status, setStatus] = useState<'loaded' | 'loading' | 'failed'>('loading')
+export function useImage(url: string): [HTMLImageElement | undefined, 'loading' | 'loaded' | 'failed'] {
+  const [state, setState] = useState<[HTMLImageElement | undefined, 'loading' | 'loaded' | 'failed']>([
+    undefined,
+    'loading',
+  ])
 
   useEffect(() => {
     if (!url) return
 
-    const img = new Image()
+    const img = new window.Image()
+    
+    function onload() {
+      setState([img, 'loaded'])
+    }
+    
+    function onerror() {
+      setState([undefined, 'failed'])
+    }
+    
+    img.addEventListener('load', onload)
+    img.addEventListener('error', onerror)
+    img.crossOrigin = 'anonymous'
     img.src = url
     
-    img.onload = () => {
-      setImage(img)
-      setStatus('loaded')
-      console.log(`Image loaded successfully: ${url}`)
-    }
-    
-    img.onerror = (e) => {
-      setStatus('failed')
-      console.error(`Failed to load image: ${url}`, e)
-    }
-
     return () => {
-      img.onload = null
-      img.onerror = null
+      img.removeEventListener('load', onload)
+      img.removeEventListener('error', onerror)
     }
   }, [url])
 
-  return [image, status]
+  return state
 }
