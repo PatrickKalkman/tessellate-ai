@@ -1,202 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
-import dynamic from 'next/dynamic'
+import { useState, useEffect, useRef } from 'react'
+import { Stage, Layer, Image as KonvaImage, Rect, Line, Group } from 'react-konva'
 import { PuzzleManifest, PuzzleState } from '@/types/puzzle'
-import { loadKonvaFromCDN, useImage } from './KonvaLoader'
+import { useImage } from './KonvaLoader'
 
-const KonvaStage = dynamic(
-  async () => {
-    const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await loadKonvaFromCDN()
-    
-    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, bgX, bgY, bgWidth, bgHeight, showBackground }: any) {
-      const playAreaHeight = stageSize.height - trayHeight
-      
-      return (
-        <Stage 
-          width={stageSize.width} 
-          height={stageSize.height}
-          ref={stageRef}
-          className=""
-          onWheel={(e: any) => {
-            const evt = e.evt
-            // Check if mouse is in tray area
-            if (evt.offsetY > playAreaHeight) {
-              evt.preventDefault()
-              const delta = evt.deltaX || evt.deltaY
-              const newScrollX = Math.max(0, scrollX.current + delta)
-              scrollX.current = newScrollX
-              setCurrentScrollX(newScrollX)
-            }
-          }}
-        >
-          <Layer>
-            {/* Play area background */}
-            <Rect
-              x={0}
-              y={0}
-              width={stageSize.width}
-              height={playAreaHeight}
-              fill="#1a1a1a"
-            />
-            
-            {/* Background image (faded or full based on showBackground) */}
-            {backgroundImage && (
-              <KonvaImage
-                image={backgroundImage}
-                x={bgX}
-                y={bgY}
-                width={bgWidth}
-                height={bgHeight}
-                opacity={showBackground ? 1.0 : 0.2}
-              />
-            )}
-
-            {/* Tray area background - fixed position */}
-            <Rect
-              x={0}
-              y={playAreaHeight}
-              width={stageSize.width}
-              height={trayHeight}
-              fill="#2a2a2a"
-            />
-            
-            {/* Separator line - fixed position */}
-            <Line
-              points={[0, playAreaHeight, stageSize.width, playAreaHeight]}
-              stroke="#444"
-              strokeWidth={2}
-            />
-
-            {/* Unplaced pieces in tray - wrapped in a scrollable group */}
-            <Group x={-currentScrollX} y={0} draggable={false}>
-              {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
-                const state = puzzleState.pieces[piece.id]
-                if (!state || state.isPlaced || state.isOnBoard) return null
-
-                return (
-                  <PuzzlePiece
-                    key={piece.id}
-                    id={piece.id}
-                    puzzleId={puzzleId}
-                    piece={piece}
-                    state={state}
-                    manifest={manifest}
-                    stageSize={stageSize}
-                    playAreaHeight={playAreaHeight}
-                    onDragEnd={handlePieceDragEnd}
-                    KonvaImage={KonvaImage}
-                    useImage={useImage}
-                    scrollX={scrollX}
-                    trayHeight={trayHeight}
-                    currentScrollX={currentScrollX}
-                    Rect={Rect}
-                    scale={scale}
-                    puzzleOffsetX={puzzleOffsetX}
-                    puzzleOffsetY={puzzleOffsetY}
-                    scaledPuzzleWidth={scaledPuzzleWidth}
-                    scaledPuzzleHeight={scaledPuzzleHeight}
-                    pieceWidth={pieceWidth}
-                    pieceHeight={pieceHeight}
-                    originalPieceWidth={originalPieceWidth}
-                    originalPieceHeight={originalPieceHeight}
-                  />
-                )
-              })}
-            </Group>
-
-            {/* Pieces on board but not correctly placed (not affected by scroll) */}
-            {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
-              const state = puzzleState.pieces[piece.id]
-              if (!state || state.isPlaced || !state.isOnBoard) return null
-
-              return (
-                <PuzzlePiece
-                  key={piece.id}
-                  id={piece.id}
-                  puzzleId={puzzleId}
-                  piece={piece}
-                  state={state}
-                  manifest={manifest}
-                  stageSize={stageSize}
-                  playAreaHeight={playAreaHeight}
-                  onDragEnd={handlePieceDragEnd}
-                  KonvaImage={KonvaImage}
-                  useImage={useImage}
-                  scrollX={scrollX}
-                  trayHeight={trayHeight}
-                  currentScrollX={currentScrollX}
-                  Rect={Rect}
-                  scale={scale}
-                  puzzleOffsetX={puzzleOffsetX}
-                  puzzleOffsetY={puzzleOffsetY}
-                  pieceWidth={pieceWidth}
-                  pieceHeight={pieceHeight}
-                />
-              )
-            })}
-
-            {/* Correctly placed pieces (not affected by scroll) - rendered AFTER tray elements */}
-            {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
-              const state = puzzleState.pieces[piece.id]
-              if (!state || !state.isPlaced) return null
-
-              return (
-                <PuzzlePiece
-                  key={piece.id}
-                  id={piece.id}
-                  puzzleId={puzzleId}
-                  piece={piece}
-                  state={state}
-                  manifest={manifest}
-                  stageSize={stageSize}
-                  playAreaHeight={playAreaHeight}
-                  onDragEnd={handlePieceDragEnd}
-                  KonvaImage={KonvaImage}
-                  useImage={useImage}
-                  scrollX={scrollX}
-                  trayHeight={trayHeight}
-                  currentScrollX={currentScrollX}
-                  Rect={Rect}
-                  scale={scale}
-                  puzzleOffsetX={puzzleOffsetX}
-                  puzzleOffsetY={puzzleOffsetY}
-                  scaledPuzzleWidth={scaledPuzzleWidth}
-                  scaledPuzzleHeight={scaledPuzzleHeight}
-                  pieceWidth={pieceWidth}
-                  pieceHeight={pieceHeight}
-                  originalPieceWidth={originalPieceWidth}
-                  originalPieceHeight={originalPieceHeight}
-                />
-              )
-            })}
-            
-            {/* Scroll indicators */}
-            {currentScrollX > 0 && (
-              <Group>
-                <Rect
-                  x={0}
-                  y={playAreaHeight}
-                  width={40}
-                  height={trayHeight}
-                  fill="rgba(0,0,0,0.5)"
-                />
-                <Line
-                  points={[25, playAreaHeight + trayHeight/2 - 10, 15, playAreaHeight + trayHeight/2, 25, playAreaHeight + trayHeight/2 + 10]}
-                  stroke="white"
-                  strokeWidth={2}
-                />
-              </Group>
-            )}
-          </Layer>
-        </Stage>
-      )
-    }
-  },
-  { ssr: false }
-)
-
-function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight }: any) {
+function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, scrollX, trayHeight, currentScrollX, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight }: any) {
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image, status] = useImage(imageUrl)
   const [isDragging, setIsDragging] = useState(false)
@@ -211,9 +20,6 @@ function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playArea
   const displayY = state.isPlaced 
     ? puzzleOffsetY + (piece.y * scale)
     : state.currentY
-
-
-
 
   // Don't render pieces that are scrolled out of view (only for pieces in tray)
   if (!state.isPlaced && !state.isOnBoard) {
@@ -268,6 +74,181 @@ function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playArea
       shadowOffsetY={state.isPlaced ? 0 : 3}
       shadowOpacity={state.isPlaced ? 0 : 0.3}
     />
+  )
+}
+
+function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, bgX, bgY, bgWidth, bgHeight, showBackground }: any) {
+  const playAreaHeight = stageSize.height - trayHeight
+  
+  return (
+    <Stage 
+      width={stageSize.width} 
+      height={stageSize.height}
+      ref={stageRef}
+      className=""
+      onWheel={(e: any) => {
+        const evt = e.evt
+        // Check if mouse is in tray area
+        if (evt.offsetY > playAreaHeight) {
+          evt.preventDefault()
+          const delta = evt.deltaX || evt.deltaY
+          const newScrollX = Math.max(0, scrollX.current + delta)
+          scrollX.current = newScrollX
+          setCurrentScrollX(newScrollX)
+        }
+      }}
+    >
+      <Layer>
+        {/* Play area background */}
+        <Rect
+          x={0}
+          y={0}
+          width={stageSize.width}
+          height={playAreaHeight}
+          fill="#1a1a1a"
+        />
+        
+        {/* Background image (faded or full based on showBackground) */}
+        {backgroundImage && (
+          <KonvaImage
+            image={backgroundImage}
+            x={bgX}
+            y={bgY}
+            width={bgWidth}
+            height={bgHeight}
+            opacity={showBackground ? 1.0 : 0.2}
+          />
+        )}
+
+        {/* Tray area background - fixed position */}
+        <Rect
+          x={0}
+          y={playAreaHeight}
+          width={stageSize.width}
+          height={trayHeight}
+          fill="#2a2a2a"
+        />
+        
+        {/* Separator line - fixed position */}
+        <Line
+          points={[0, playAreaHeight, stageSize.width, playAreaHeight]}
+          stroke="#444"
+          strokeWidth={2}
+        />
+
+        {/* Unplaced pieces in tray - wrapped in a scrollable group */}
+        <Group x={-currentScrollX} y={0} draggable={false}>
+          {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
+            const state = puzzleState.pieces[piece.id]
+            if (!state || state.isPlaced || state.isOnBoard) return null
+
+            return (
+              <PuzzlePiece
+                key={piece.id}
+                id={piece.id}
+                puzzleId={puzzleId}
+                piece={piece}
+                state={state}
+                manifest={manifest}
+                stageSize={stageSize}
+                playAreaHeight={playAreaHeight}
+                onDragEnd={handlePieceDragEnd}
+                scrollX={scrollX}
+                trayHeight={trayHeight}
+                currentScrollX={currentScrollX}
+                scale={scale}
+                puzzleOffsetX={puzzleOffsetX}
+                puzzleOffsetY={puzzleOffsetY}
+                scaledPuzzleWidth={scaledPuzzleWidth}
+                scaledPuzzleHeight={scaledPuzzleHeight}
+                pieceWidth={pieceWidth}
+                pieceHeight={pieceHeight}
+                originalPieceWidth={originalPieceWidth}
+                originalPieceHeight={originalPieceHeight}
+              />
+            )
+          })}
+        </Group>
+
+        {/* Pieces on board but not correctly placed (not affected by scroll) */}
+        {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
+          const state = puzzleState.pieces[piece.id]
+          if (!state || state.isPlaced || !state.isOnBoard) return null
+
+          return (
+            <PuzzlePiece
+              key={piece.id}
+              id={piece.id}
+              puzzleId={puzzleId}
+              piece={piece}
+              state={state}
+              manifest={manifest}
+              stageSize={stageSize}
+              playAreaHeight={playAreaHeight}
+              onDragEnd={handlePieceDragEnd}
+              scrollX={scrollX}
+              trayHeight={trayHeight}
+              currentScrollX={currentScrollX}
+              scale={scale}
+              puzzleOffsetX={puzzleOffsetX}
+              puzzleOffsetY={puzzleOffsetY}
+              pieceWidth={pieceWidth}
+              pieceHeight={pieceHeight}
+            />
+          )
+        })}
+
+        {/* Correctly placed pieces (not affected by scroll) - rendered AFTER tray elements */}
+        {[...manifest.pieces].sort((a, b) => a.id - b.id).map((piece: any) => {
+          const state = puzzleState.pieces[piece.id]
+          if (!state || !state.isPlaced) return null
+
+          return (
+            <PuzzlePiece
+              key={piece.id}
+              id={piece.id}
+              puzzleId={puzzleId}
+              piece={piece}
+              state={state}
+              manifest={manifest}
+              stageSize={stageSize}
+              playAreaHeight={playAreaHeight}
+              onDragEnd={handlePieceDragEnd}
+              scrollX={scrollX}
+              trayHeight={trayHeight}
+              currentScrollX={currentScrollX}
+              scale={scale}
+              puzzleOffsetX={puzzleOffsetX}
+              puzzleOffsetY={puzzleOffsetY}
+              scaledPuzzleWidth={scaledPuzzleWidth}
+              scaledPuzzleHeight={scaledPuzzleHeight}
+              pieceWidth={pieceWidth}
+              pieceHeight={pieceHeight}
+              originalPieceWidth={originalPieceWidth}
+              originalPieceHeight={originalPieceHeight}
+            />
+          )
+        })}
+        
+        {/* Scroll indicators */}
+        {currentScrollX > 0 && (
+          <Group>
+            <Rect
+              x={0}
+              y={playAreaHeight}
+              width={40}
+              height={trayHeight}
+              fill="rgba(0,0,0,0.5)"
+            />
+            <Line
+              points={[25, playAreaHeight + trayHeight/2 - 10, 15, playAreaHeight + trayHeight/2, 25, playAreaHeight + trayHeight/2 + 10]}
+              stroke="white"
+              strokeWidth={2}
+            />
+          </Group>
+        )}
+      </Layer>
+    </Stage>
   )
 }
 
@@ -673,12 +654,7 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
 
       {/* Puzzle Stage */}
       <div className="absolute top-20 left-0 right-0 bottom-0">
-        <Suspense fallback={
-          <div className="flex items-center justify-center h-full">
-            <div className="text-white text-xl">Loading puzzle...</div>
-          </div>
-        }>
-          <KonvaStage
+        <PuzzleCanvas
           puzzleId={puzzleId}
           manifest={manifest}
           puzzleState={puzzleState}
@@ -707,7 +683,6 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
           bgHeight={bgHeight}
           showBackground={showBackground}
         />
-        </Suspense>
       </div>
 
       {/* Spacebar hint */}
