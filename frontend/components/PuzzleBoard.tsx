@@ -184,7 +184,9 @@ const KonvaStage = dynamic(
 )
 
 function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY }: any) {
-  const pieceSize = 128 // Size of each piece
+  const pieceSize = 128 // Size of the puzzle grid square
+  const tabSize = pieceSize / 4
+  const fullPieceSize = pieceSize + tabSize * 2
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image] = useImage(imageUrl)
   const [position, setPosition] = useState({ x: state.currentX, y: state.currentY })
@@ -215,20 +217,22 @@ function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playArea
 
 
   // Don't render pieces that are scrolled out of view (only for pieces in tray)
-  if (!state.isPlaced && !state.isOnBoard && position.x + 128 < currentScrollX) return null
+  if (!state.isPlaced && !state.isOnBoard && position.x + pieceSize < currentScrollX) return null
   if (!state.isPlaced && !state.isOnBoard && position.x > currentScrollX + stageSize.width) return null
 
   // Scale pieces when they're on the board (not just when correctly placed)
   const shouldScale = state.isPlaced || state.isOnBoard || (isDragging && position.y < playAreaHeight)
   const currentScale = shouldScale ? scale : 1
+  const drawOffset = shouldScale ? tabSize * scale : 0
+  const drawWidth = shouldScale ? fullPieceSize * scale : pieceSize
   
   return (
     <KonvaImage
       image={image}
-      x={displayX}
-      y={displayY}
-      width={pieceSize * currentScale}
-      height={pieceSize * currentScale}
+      x={displayX - drawOffset}
+      y={displayY - drawOffset}
+      width={drawWidth}
+      height={drawWidth}
       draggable={!state.isPlaced}  // Only correctly placed pieces are not draggable
       onDragStart={() => setIsDragging(true)}
       onDragMove={(e: any) => {
@@ -239,20 +243,16 @@ function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playArea
       }}
       onDragEnd={(e: any) => {
         const node = e.target
-        const layer = node.getLayer()
-        const stage = node.getStage()
-        
-        // Get absolute position on the stage
         const absolutePos = node.getAbsolutePosition()
-        
-        // For pieces dropped on the board, use the absolute position directly
-        // For pieces in the tray, we need to calculate the position within the scrollable area
+
         if (absolutePos.y < playAreaHeight) {
-          // Piece is on the board - use absolute position
+          // Piece dropped on the board
+          const boardX = absolutePos.x + tabSize * scale
+          const boardY = absolutePos.y + tabSize * scale
           setPosition({ x: absolutePos.x, y: absolutePos.y })
-          onDragEnd(id, absolutePos.x, absolutePos.y)
+          onDragEnd(id, boardX, boardY)
         } else {
-          // Piece is in the tray - calculate position accounting for scroll
+          // Piece dropped in the tray - account for scroll position
           const trayX = absolutePos.x + currentScrollX
           setPosition({ x: trayX, y: absolutePos.y })
           onDragEnd(id, trayX, absolutePos.y)
