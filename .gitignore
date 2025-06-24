@@ -202,6 +202,8 @@ cython_debug/
 # Generated puzzle data
 public/puzzles/*
 !public/puzzles/.gitkeep
+backend/public/puzzles/*
+!backend/public/puzzles/.gitkeep
 
 # Temporary files
 *.tmp
