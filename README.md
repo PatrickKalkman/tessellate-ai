@@ -366,7 +366,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Issues**: [GitHub Issues](https://github.com/PatrickKalkman/tessellate-ai/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/PatrickKalkman/tessellate-ai/discussions)
 - **Email**: patrick.kalkman@example.com
-- **Twitter**: [@PatrickKalkman](https://twitter.com/PatrickKalkman)
 
 ---
 
