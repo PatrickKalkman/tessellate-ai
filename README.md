@@ -1,5 +1,9 @@
 # 🧩 Tessellate-AI
 
+<p align="center">
+  <img src="docs/cover-image.jpg" alt="Tessellate-AI Cover Image" width="100%" style="max-width: 1200px;">
+</p>
+
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Next.js](https://img.shields.io/badge/Next.js-14.2-black.svg)](https://nextjs.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-API-green.svg)](https://openai.com/)
