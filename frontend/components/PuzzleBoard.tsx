@@ -3,12 +3,11 @@
 import { useState, useEffect, useRef, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { PuzzleManifest, PuzzleState } from '@/types/puzzle'
-import type { Stage as StageType } from 'konva/lib/Stage'
+import { loadKonvaFromCDN, useImage } from './KonvaLoader'
 
 const KonvaStage = dynamic(
   async () => {
-    const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await import('react-konva')
-    const useImage = (await import('use-image')).default
+    const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await loadKonvaFromCDN()
     
     return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, bgX, bgY, bgWidth, bgHeight, showBackground }: any) {
       const playAreaHeight = stageSize.height - trayHeight
@@ -19,7 +18,7 @@ const KonvaStage = dynamic(
           height={stageSize.height}
           ref={stageRef}
           className=""
-          onWheel={(e) => {
+          onWheel={(e: any) => {
             const evt = e.evt
             // Check if mouse is in tray area
             if (evt.offsetY > playAreaHeight) {
@@ -199,8 +198,11 @@ const KonvaStage = dynamic(
 
 function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight }: any) {
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
-  const [image] = useImage(imageUrl)
+  const [image, status] = useImage(imageUrl)
   const [isDragging, setIsDragging] = useState(false)
+  
+  // Don't render until image is loaded
+  if (!image || status !== 'loaded') return null
   
   // Simple positioning - scale piece positions when placed
   const displayX = state.isPlaced 
@@ -286,7 +288,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardProps) {
-  const stageRef = useRef<StageType>(null)
+  const stageRef = useRef<any>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [backgroundDimensions, setBackgroundDimensions] = useState<{width: number, height: number} | null>(null)
@@ -419,12 +421,17 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   useEffect(() => {
     const img = new Image()
     img.src = `/puzzles/${puzzleId}/original.jpg`
+    console.log(`Loading background image: /puzzles/${puzzleId}/original.jpg`)
     img.onload = () => {
+      console.log(`Background image loaded successfully: ${img.naturalWidth}x${img.naturalHeight}`)
       setBackgroundImage(img)
       setBackgroundDimensions({
         width: img.naturalWidth,
         height: img.naturalHeight
       })
+    }
+    img.onerror = (e) => {
+      console.error(`Failed to load background image: /puzzles/${puzzleId}/original.jpg`, e)
     }
   }, [puzzleId])
 
