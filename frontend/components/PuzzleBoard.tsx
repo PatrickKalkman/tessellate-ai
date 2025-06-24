@@ -10,7 +10,7 @@ const KonvaStage = dynamic(
     const { Stage, Layer, Image: KonvaImage, Rect, Line, Group } = await import('react-konva')
     const useImage = (await import('use-image')).default
     
-    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceWidth, pieceHeight, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, bgX, bgY, bgWidth, bgHeight, showBackground }: any) {
+    return function PuzzleCanvas({ puzzleId, manifest, puzzleState, handlePieceDragEnd, stageSize, stageRef, backgroundImage, trayHeight, scrollX, setCurrentScrollX, trayPaddingTop, currentScrollX, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight, pieceSpacing, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, bgX, bgY, bgWidth, bgHeight, showBackground }: any) {
       const playAreaHeight = stageSize.height - trayHeight
       
       return (
@@ -99,6 +99,8 @@ const KonvaStage = dynamic(
                     scaledPuzzleHeight={scaledPuzzleHeight}
                     pieceWidth={pieceWidth}
                     pieceHeight={pieceHeight}
+                    originalPieceWidth={originalPieceWidth}
+                    originalPieceHeight={originalPieceHeight}
                   />
                 )
               })}
@@ -164,6 +166,8 @@ const KonvaStage = dynamic(
                   scaledPuzzleHeight={scaledPuzzleHeight}
                   pieceWidth={pieceWidth}
                   pieceHeight={pieceHeight}
+                  originalPieceWidth={originalPieceWidth}
+                  originalPieceHeight={originalPieceHeight}
                 />
               )
             })}
@@ -193,17 +197,17 @@ const KonvaStage = dynamic(
   { ssr: false }
 )
 
-function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, pieceWidth, pieceHeight }: any) {
+function PuzzlePiece({ id, puzzleId, piece, state, manifest, stageSize, playAreaHeight, onDragEnd, KonvaImage, useImage, scrollX, trayHeight, currentScrollX, Rect, scale, puzzleOffsetX, puzzleOffsetY, scaledPuzzleWidth, scaledPuzzleHeight, pieceWidth, pieceHeight, originalPieceWidth, originalPieceHeight }: any) {
   const imageUrl = `/puzzles/${puzzleId}/piece_${id.toString().padStart(3, '0')}.png`
   const [image] = useImage(imageUrl)
   const [isDragging, setIsDragging] = useState(false)
   
-  // Simple positioning - no complex offsets
+  // Simple positioning - scale piece positions when placed
   const displayX = state.isPlaced 
-    ? puzzleOffsetX + piece.x
+    ? puzzleOffsetX + (piece.x * scale)
     : state.currentX
   const displayY = state.isPlaced 
-    ? puzzleOffsetY + piece.y
+    ? puzzleOffsetY + (piece.y * scale)
     : state.currentY
 
 
@@ -271,6 +275,16 @@ interface PuzzleBoardProps {
   onBack: () => void
 }
 
+// Fisher-Yates shuffle algorithm
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardProps) {
   const stageRef = useRef<StageType>(null)
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 })
@@ -282,23 +296,39 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   const [, forceUpdate] = useState({})
   const [currentScrollX, setCurrentScrollX] = useState(0)
   
-  // Fixed dimensions - no scaling
+  // Fixed dimensions with safe area considerations
   const trayHeight = 160 // Fixed tray height
   const playAreaHeight = stageSize.height - trayHeight
-  const padding = 40 // Padding around the puzzle
+  const safeAreaTop = 20 // Buffer from top of play area
+  const safeAreaBottom = 20 // Buffer from tray
+  const safeAreaPadding = 40 // Padding around puzzle within safe area
+  
+  // Calculate actual safe area for puzzle
+  const safeHeight = playAreaHeight - safeAreaTop - safeAreaBottom
+  const safeWidth = stageSize.width - (safeAreaPadding * 2)
+  
   const puzzleWidth = manifest.width
   const puzzleHeight = manifest.height
-  const pieceWidth = puzzleWidth / manifest.grid[1]
-  const pieceHeight = puzzleHeight / manifest.grid[0]
   
-  // Center the puzzle in available space
-  const puzzleOffsetX = (stageSize.width - puzzleWidth) / 2
-  const puzzleOffsetY = (playAreaHeight - puzzleHeight) / 2
+  // Calculate scale to fit puzzle within safe area
+  const scaleX = safeWidth / puzzleWidth
+  const scaleY = safeHeight / puzzleHeight
+  const scale = Math.min(scaleX, scaleY, 1) // Don't scale up, only down if needed
   
-  // No scaling - display at actual size
-  const scale = 1
-  const scaledPuzzleWidth = puzzleWidth
-  const scaledPuzzleHeight = puzzleHeight
+  const scaledPuzzleWidth = puzzleWidth * scale
+  const scaledPuzzleHeight = puzzleHeight * scale
+  
+  // Center the puzzle within the safe area
+  const puzzleOffsetX = (stageSize.width - scaledPuzzleWidth) / 2
+  const puzzleOffsetY = safeAreaTop + (safeHeight - scaledPuzzleHeight) / 2
+  
+  // Calculate piece dimensions based on scale
+  const pieceWidth = scaledPuzzleWidth / manifest.grid[1]
+  const pieceHeight = scaledPuzzleHeight / manifest.grid[0]
+  
+  // Original piece dimensions for tray positioning
+  const originalPieceWidth = puzzleWidth / manifest.grid[1]
+  const originalPieceHeight = puzzleHeight / manifest.grid[0]
   
   // Calculate background image dimensions preserving aspect ratio
   let bgWidth = scaledPuzzleWidth
@@ -348,7 +378,7 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
               // Don't change their positions as they should maintain board placement
             } else {
               // For pieces in tray, reset to sequential positions
-              savedPiece.currentX = pieceSpacing + (trayIndex * (pieceWidth + pieceSpacing))
+              savedPiece.currentX = pieceSpacing + (trayIndex * (originalPieceWidth + pieceSpacing))
               savedPiece.currentY = initialY
               savedPiece.isOnBoard = false
               trayIndex++
@@ -363,15 +393,15 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     // Initialize new state with pieces in the tray
     const pieces: PuzzleState['pieces'] = {}
     
-    // Sort pieces by ID to ensure sequential layout
-    const sortedPieces = [...manifest.pieces].sort((a, b) => a.id - b.id)
+    // Shuffle pieces for random order in tray
+    const shuffledPieces = shuffleArray([...manifest.pieces])
     
     // Calculate initial Y position based on window height
     const initialHeight = typeof window !== 'undefined' ? window.innerHeight - 80 : 600
     const initialY = initialHeight - trayHeight + trayPaddingTop
     
-    sortedPieces.forEach((piece, index) => {
-      const trayX = pieceSpacing + (index * (pieceWidth + pieceSpacing))
+    shuffledPieces.forEach((piece, index) => {
+      const trayX = pieceSpacing + (index * (originalPieceWidth + pieceSpacing))
       pieces[piece.id] = {
         currentX: trayX,
         currentY: initialY,
@@ -481,8 +511,8 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
     const playAreaHeight = stageSize.height - trayHeight
     const snapDistance = 40 // Snap distance in pixels
     const adjacentSnapDistance = 30 // Distance for snapping to adjacent pieces
-    const targetX = puzzleOffsetX + piece.x
-    const targetY = puzzleOffsetY + piece.y
+    const targetX = puzzleOffsetX + (piece.x * scale)
+    const targetY = puzzleOffsetY + (piece.y * scale)
     
     // Check if piece is on the board (not in tray)
     const isOnBoard = y < playAreaHeight
@@ -528,8 +558,8 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
             // If neighbor is placed, check if we can snap to it
             if (neighborState && neighborState.isPlaced) {
               // For placed pieces, calculate expected position based on grid
-              const expectedX = puzzleOffsetX + piece.x + (neighbor.dCol * pieceWidth)
-              const expectedY = puzzleOffsetY + piece.y + (neighbor.dRow * pieceHeight)
+              const expectedX = puzzleOffsetX + (piece.x * scale) + (neighbor.dCol * pieceWidth)
+              const expectedY = puzzleOffsetY + (piece.y * scale) + (neighbor.dRow * pieceHeight)
               
               if (Math.abs(x - expectedX) < adjacentSnapDistance && 
                   Math.abs(y - expectedY) < adjacentSnapDistance) {
@@ -576,11 +606,11 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
   const resetPuzzle = () => {
     const pieces: PuzzleState['pieces'] = {}
     
-    // Sort pieces by ID to ensure sequential layout
-    const sortedPieces = [...manifest.pieces].sort((a, b) => a.id - b.id)
+    // Shuffle pieces for random order in tray
+    const shuffledPieces = shuffleArray([...manifest.pieces])
     
-    sortedPieces.forEach((piece, index) => {
-      const trayX = pieceSpacing + (index * (pieceWidth + pieceSpacing))
+    shuffledPieces.forEach((piece, index) => {
+      const trayX = pieceSpacing + (index * (originalPieceWidth + pieceSpacing))
       pieces[piece.id] = {
         currentX: trayX,
         currentY: stageSize.height - trayHeight + trayPaddingTop,
@@ -656,6 +686,8 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
           currentScrollX={currentScrollX}
           pieceWidth={pieceWidth}
           pieceHeight={pieceHeight}
+          originalPieceWidth={originalPieceWidth}
+          originalPieceHeight={originalPieceHeight}
           pieceSpacing={pieceSpacing}
           scale={scale}
           puzzleOffsetX={puzzleOffsetX}
@@ -694,13 +726,13 @@ export default function PuzzleBoard({ puzzleId, manifest, onBack }: PuzzleBoardP
       
       <button
         onClick={() => {
-          const maxScroll = Math.max(0, manifest.pieces.length * (pieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2)
+          const maxScroll = Math.max(0, manifest.pieces.length * (originalPieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2)
           scrollX.current = Math.min(maxScroll, scrollX.current + 200)
           setCurrentScrollX(scrollX.current)
         }}
-        className={`absolute right-4 transform -translate-y-1/2 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full transition ${currentScrollX >= Math.max(0, manifest.pieces.length * (pieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2) ? 'opacity-50 cursor-not-allowed' : ''}`}
+        className={`absolute right-4 transform -translate-y-1/2 bg-gray-800 hover:bg-gray-700 text-white p-3 rounded-full transition ${currentScrollX >= Math.max(0, manifest.pieces.length * (originalPieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2) ? 'opacity-50 cursor-not-allowed' : ''}`}
         style={{ bottom: `${trayHeight/2}px` }}
-        disabled={currentScrollX >= Math.max(0, manifest.pieces.length * (pieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2)}
+        disabled={currentScrollX >= Math.max(0, manifest.pieces.length * (originalPieceWidth + pieceSpacing) - stageSize.width + pieceSpacing * 2)}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="9 18 15 12 9 6"></polyline>
